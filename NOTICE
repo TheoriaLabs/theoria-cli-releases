@@ -1,0 +1,23 @@
+Theoria CLI
+Copyright 2026 DeepHedge Labs LLC
+
+This product includes software developed by DeepHedge Labs LLC and is
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party software
+--------------------
+
+The following files are adapted from third-party projects under the MIT
+License. They remain subject to their original copyright and license notices,
+which are reproduced alongside them. See packages/theoria-tui/NOTICE.md for
+the list of adapted files and the changes made.
+
+- pi-open-tui 0.3.11, https://github.com/OldSuns/pi-open-tui
+  Copyright (c) 2026 pi-open-tui contributors
+  MIT License: packages/theoria-tui/LICENSE-pi-open-tui
+
+- pi-cc-header 1.1.1, https://github.com/eriiic7z/pi-cc-header
+  Copyright (c) 2026 eriiic7z
+  MIT License: packages/theoria-tui/LICENSE-pi-cc-header
+
+Dependencies installed from npm are distributed under their own licenses.
