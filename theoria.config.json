@@ -1,0 +1,568 @@
+{
+  "$comment": "Theoria CLI settings. Every value here is read by the code and validated at startup: a misspelt key, a wrong type or an out-of-range number stops the CLI with the key named. To change a value, put just that key in the user config (paths.userConfig, or the file named by THEORIA_CONFIG); objects merge into these defaults and arrays replace them.",
+  "paths": {
+    "$comment": "~ is the home directory. The environment variables PI_CODING_AGENT_DIR, THEORIA_LEAN_HOME and ELAN_HOME still override the first three.",
+    "agentDir": "~/.theoria-cli/agent",
+    "leanHome": "~/.theoria-cli/lean",
+    "elanHome": "~/.elan",
+    "userConfig": "~/.theoria-cli/config.json",
+    "projectDir": ".theoria",
+    "commandsDir": "commands",
+    "attemptsDir": "attempts",
+    "formalDir": "formal",
+    "mathlibDir": "mathlib"
+  },
+  "process": {
+    "$comment": "Output kept from any program Theoria runs (lean, lake, git, elan); the rest is dropped.",
+    "maxOutputBytes": 4194304
+  },
+  "project": {
+    "$comment": "A project's type decides which Theoria workflows it gets. It is saved in <project>/.theoria/<file>; a folder without one uses defaultType. `theoria --<flag> <type>` overrides it for one run. /new-project creates projects in parentDir, relative to where theoria was started, with gitignore lines in a new .gitignore. Every workflow verdict is appended to <project>/.theoria/<verdictsFile> (and to the current research run's events); /project status shows the last statusRecentVerdicts. An older runs.jsonl is renamed to it on first use. /project list shows the projects in parentDir, and the current folder when it is a project outside it and listShowOutside is true.",
+    "file": "project.json",
+    "defaultType": "mathematics",
+    "flag": "project-type",
+    "parentDir": "./theoria-projects",
+    "gitignore": [".theoria/attempts/", ".theoria/benchmarks/", ".theoria/latex/", ".lake/"],
+    "verdictsFile": "verdicts.jsonl",
+    "legacyVerdictsFile": "runs.jsonl",
+    "statusRecentVerdicts": 5,
+    "listShowOutside": true
+  },
+  "projectTypes": {
+    "$comment": "What each project type enables. workflows: the Theoria slash commands it gets. lean: /lean, lean_check and the Lean note in the agent's instructions; a type with workflows needs it. scaffold: folders /new-project creates. progress: how /status measures progress, lean-goal (share of the goal theorem's project lemmas Lean verifies) or none. mcpServers: the MCP servers (Pi's /mcp) this type loads, each with the tools declared to the model as tools of their own (directTools; the server's exposure in mcp.json decides the rest). A server Theoria manages (see mcp) loads only in the types that list it. otherServers: show loads the servers you added yourself (theoria mcp add) in every project of this type, as plain Pi does; hide loads only the listed ones. /project servers changes both for the current type. Telegram offers each type's workflows as bot commands. A user config may add types.",
+    "mathematics": { "name": "Mathematics research", "description": "Formal statements and proofs in Lean", "workflows": ["formalize", "prove", "compress"], "lean": true, "latex": true, "scaffold": ["formal"], "progress": "lean-goal", "mcpServers": [{ "server": "lean-lsp", "directTools": ["lean_loogle", "lean_leanfinder", "lean_local_search"] }], "otherServers": "show" },
+    "theoretical-physics": { "name": "Theoretical physics", "description": "Physical statements formalized and proved in Lean", "workflows": ["formalize", "prove"], "lean": true, "latex": true, "scaffold": ["formal"], "progress": "lean-goal", "mcpServers": [{ "server": "lean-lsp", "directTools": ["lean_loogle", "lean_leanfinder", "lean_local_search"] }], "otherServers": "show" },
+    "ai-ml": { "name": "AI/ML research", "description": "Experiments and papers", "workflows": [], "lean": false, "latex": true, "scaffold": [], "progress": "none", "mcpServers": [], "otherServers": "show" },
+    "quant-finance": { "name": "Quantitative finance", "description": "Models, backtests and papers", "workflows": [], "lean": false, "latex": true, "scaffold": [], "progress": "none", "mcpServers": [], "otherServers": "show" },
+    "other": { "name": "Other", "description": "Pi with Theoria's papers and rendering", "workflows": [], "lean": false, "latex": true, "scaffold": [], "progress": "none", "mcpServers": [], "otherServers": "show" }
+  },
+  "research": {
+    "$comment": "Research runs, claims and artifacts, in the project's .theoria folder. A run is one bounded research effort with a persistent goal: runsDir/<run>/runFile holds it, eventsFile its append-only events. A session belongs to at most one run (a custom entry in its session file); /run new and /run fork start a new session for the run. Claims (claimsFile) and artifacts (artifactsFile) belong to the project and record the run that made or changed them; claimsFile keeps every version. A claim is verified only by Theoria: formally, when a linked Lean file, at the hash it was checked at, has the named theorem proved without sorry and with the standard axioms; or statistically (statistical), when Theoria's own test on a linked data file reaches the configured significance. Before each agent turn the run's goal and the most relevant project knowledge are added to the agent's instructions, within context.maxChars. lockStaleSeconds: a lock older than this was left by a crashed process and is taken over. goalPrefix starts the pi-goal-x goal a run links to, so the two can be matched.",
+    "runsDir": "runs",
+    "runFile": "run.json",
+    "eventsFile": "events.jsonl",
+    "claimsFile": "claims.jsonl",
+    "artifactsFile": "artifacts.jsonl",
+    "lockFile": "research.lock",
+    "lockStaleSeconds": 30,
+    "lockWaitSeconds": 10,
+    "goalPrefix": "Research run",
+    "statusMaxRuns": 8,
+    "context": { "maxClaims": 12, "maxArtifacts": 10, "maxEvents": 8, "maxChars": 6000 },
+    "statistical": {
+      "$comment": "Statistical verification, for empirical claims (ML experiments, backtests): Theoria computes the test itself from the raw samples in a data artifact (CSV, TSV, JSON, JSONL), never from a reported p-value, with the direction stated before the test. A claim is verified (statistical) when the one-sided result reaches sigma standard deviations (5: p below about 2.9e-7) after correction for every test run on that claim (bonferroni multiplies the p-value by the number of tests, so trying again until something passes does not pay; none does not correct). Each group needs at least minSamples values. Unlike a Lean proof, this is evidence, not certainty: it says how unlikely the data would be if the claim were false, under the test's assumptions, and depends on how the data was produced, which Theoria records but does not check.",
+      "sigma": 5,
+      "minSamples": 10,
+      "correction": "bonferroni"
+    }
+  },
+  "plan": {
+    "$comment": "Plans: how a research run (or a benchmark trial) means to reach its objective, as a small graph, Lean-checked (category lean: a proof skeleton) or a vision (category vision: a strategic research graph, for AI/ML, quantitative finance or any project without Lean; its shape is checked, not by Lean); the default follows the project type: attack angles (alternative routes, one active), and nodes (definitions, lemmas, theorems, milestones) with their dependencies. A node's status comes from its evidence, never from the agent: a Lean declaration (file.lean:name, from Lean's theorem inventory), or a claim (its verification); an unlinked milestone may be marked done, shown as the agent's judgement. A lean plan is a valid proof skeleton when it has minAngles angles, at least one stated lemma in the file, and the objective theorem is open only through its lemmas (it depends on sorry, it has none of its own). A run's plan is `file` in its run folder; outside a run (a benchmark trial) in the project's .theoria. The prompt shows the plan's open nodes, at most maxNodesShown. guideline tells the agent when to plan. In a benchmark trial whose profile requires a plan (harness.profiles[].trialPlan), an agent that stops with sorry left is asked for a valid skeleton (requestLines, then what the check found missing), up to planRounds times; with one, it is kept working on the plan's next nodes until they are proved, its angles are abandoned, or stallRounds continuations bring no progress.",
+    "file": "plan.json",
+    "minAngles": 2,
+    "maxNodesShown": 14,
+    "planRounds": 2,
+    "stallRounds": 3,
+    "guideline": "When the result, or an ingredient its proof needs, is not in Mathlib, make a plan with the plan tool before you decide anything is out of reach: two or three attack angles, and for the one you pursue the definitions, lemmas and theorems the proof needs, stated in the Lean file with sorry first and linked to the plan; then prove them one at a time, checking with the plan tool's check.",
+    "requestLines": [
+      "Before stopping, make a proof plan with the plan tool. Hard theorems are expected to need theory that Mathlib lacks, built as definitions and lemmas.",
+      "1. create: category lean, the objective (target Solution.lean:<theorem>) and at least two attack angles, each with its rationale and its main risk.",
+      "2. For the active angle, write the missing definitions and lemmas into Solution.lean with sorry as their proofs, and prove the main theorem from them, so that it has no sorry of its own.",
+      "3. add: one node per definition and lemma, linked to its declaration (Solution.lean:<name>), with its dependencies; then check."
+    ]
+  },
+  "benchmarks": {
+    "$comment": "Benchmarks: task suites run as research runs of kind benchmark. Sources, tool builds and Mathlib environments live in Theoria's agent directory (dir); runs and trials in the project's .theoria/<runsDir>. Each benchmark pins the Lean toolchain, the Mathlib commit and the Lean options its tasks need; a trial runs only on a Mathlib checkout at exactly that commit, cloned (APFS copy-on-write) into envsDir so Lake may write its caches there and never into your checkout. Every trial is a separate Theoria session in the bot's sandbox, in its own Lake project, with the run's harness profile (its trial components and trialTools only), and is judged by Comparator (statement unchanged, permitted axioms only, kernel replay), built per Lean version from comparator.repo at comparator.tags and sandboxed with Theoria's landrun stand-in. A trial is a prompt, the agent's work, and Comparator; when Comparator rejects it the agent gets Comparator's message back, up to feedbackRounds more times, within the same limits; a Solution.lean that has not changed since its last judgement (or is still the untouched challenge) is not judged again: the agent is told its remaining budget instead, up to continueRounds times, then the trial ends as given up; it ends after timeoutMinutes, maxTurns or maxCostUsd. repetitions runs each task that many times; thinking is the model's thinking level for every trial (minimal, low, medium, high, xhigh), recorded with the run, and runs on different levels are not compared; an infrastructure error is retried up to retries times, a failed proof is not. heartbeatSeconds: how often a running runner marks its trials alive; trials marked longer than staleAfterSeconds ago belong to a runner that stopped. estimateMinutesPerTask is used only for the estimate shown before a run.",
+    "dir": "benchmarks",
+    "sourcesDir": "sources",
+    "toolsDir": "tools",
+    "envsDir": "envs",
+    "runsDir": "benchmarks",
+    "trialPiDir": "trial-pi",
+    "compression": { "rounds": 2 },
+    "defaults": { "concurrency": 2, "timeoutMinutes": 30, "maxTurns": 80, "maxCostUsd": 3, "retries": 1, "feedbackRounds": 3, "continueRounds": 2, "thinking": "medium", "repetitions": 1, "estimateMinutesPerTask": 15 },
+    "splits": {
+      "$comment": "Every task of a benchmark belongs to one split, for loops that tune a harness: train to learn from, val to choose between versions, test only for the final report. A task's split comes from a hash of seed and its id against the shares, and is frozen in the benchmark's split manifest (manifestFile, beside its source) when the benchmark is installed, so changing the shares later does not move tasks between splits. A run on test asks first (confirmTest), and its trials are marked sealed: their transcripts are not for tuning. defaultRunSplit is used when a run names no split.",
+      "seed": "theoria-splits-v1",
+      "shares": [{ "split": "train", "share": 0.6 }, { "split": "val", "share": 0.2 }, { "split": "test", "share": 0.2 }],
+      "defaultRunSplit": "val",
+      "confirmTest": true,
+      "manifestFile": "splits.json"
+    },
+    "limits": { "concurrency": { "min": 1, "max": 8 }, "timeoutMinutes": { "min": 1, "max": 480 } },
+    "escalation": {
+      "$comment": "Goal mode for trials whose harness profile escalates (harness.profiles[].trialEscalation): the runner sends /goal-direct with the task and goalLines, and pi-goal-x keeps the agent working across turns. It escalates on failure at most once, and only with minMinutesLeft and minCostLeftUsd of the trial's budget left. In goal mode the turn limit is maxTurns; pi-goal-x's auditor is off (Comparator is the judge, its 'complete' is not success) and it may continue on its own maxAutonomousRuns times. After the session settles the runner waits settleGraceSeconds for a continuation before it judges.",
+      "minMinutesLeft": 5,
+      "minCostLeftUsd": 1,
+      "maxTurns": 400,
+      "maxAutonomousRuns": 40,
+      "settleGraceSeconds": 5,
+      "goalLines": [
+        "Goal: make Solution.lean pass Comparator: a complete proof of the theorem, with its statement and every definition it uses unchanged, no sorry, no new axioms, only the standard axioms.",
+        "Work in tasks: write each result the proof needs that Mathlib lacks as its own lemma in Solution.lean (with sorry at first), record them as goal tasks, and prove them one at a time, checking each with `lake lean Solution.lean`.",
+        "There is no partial credit: a remaining sorry scores zero. Keep working while time and budget are left.",
+        "Verification contract: `lake lean Solution.lean` in this folder reports no errors and no use of sorry."
+      ]
+    },
+    "awake": {
+      "$comment": "A run keeps the Mac from idle sleep while it works (caffeinate -i for the runner's lifetime): in sleep, and in the short dark wakes between, there is no network and every model call fails. Closing the lid still sleeps it.",
+      "preventSleep": true
+    },
+    "network": {
+      "$comment": "When the model cannot be reached at all (no tokens yet: the network is down, the Mac was asleep), the trial is put back in the queue without counting as an error and the runner waits, backoffSeconds in turn (the last repeats), at most waitMaxMinutes in all before it pauses the run (/benchmark resume continues). A connection that drops in the middle of a trial is resumed in the same conversation, up to reconnectRounds times.",
+      "backoffSeconds": [30, 60, 120, 300],
+      "waitMaxMinutes": 60,
+      "reconnectRounds": 3
+    },
+    "heartbeatSeconds": 15,
+    "workerStartupTimeoutSeconds": 180,
+    "workerRpcTimeoutSeconds": 60,
+    "staleAfterSeconds": 90,
+    "prepareTimeoutSeconds": 900,
+    "comparator": {
+      "repo": "https://github.com/leanprover/comparator.git",
+      "$comment": "Per Lean minor version. exporter pins a separate lean4export commit for older Comparator releases; empty uses the exporter bundled by Comparator's Lake manifest. Comparator 4.27 reads format 2.0, so its exporter is pinned before the JSON format transition and compiled with the exact 4.27.0 toolchain.",
+      "exporterRepo": "https://github.com/leanprover/lean4export.git",
+      "tags": [{ "lean": "4.27", "tag": "v4.27.0", "exporter": "bd93e5ed12fbeea19f39ec3ead659c293b2b8a95" }, { "lean": "4.28", "tag": "v4.28.0", "exporter": "" }, { "lean": "4.33", "tag": "v4.33.0", "exporter": "" }],
+      "timeoutSeconds": 1200,
+      "buildTimeoutSeconds": 1200
+    },
+    "putnambench": { "repo": "https://github.com/trishullab/PutnamBench.git", "commit": "a635813f5edf297d928f9bd5ef8324a26bdde09c" },
+    "minif2f": { "repo": "https://github.com/google-deepmind/miniF2F.git", "commit": "f0a20e14c1eeccd859d51bb4c2b3ee487889c303" },
+    "formalqualbench": { "repo": "https://github.com/math-inc/FormalQualBench.git", "commit": "efaa113c6a00a79e92842ce541b407d7695d7699", "timeoutMinutes": 240 },
+    "smoke": { "toolchain": "leanprover/lean4:v4.28.0" }
+  },
+  "autoresearch": {
+    "$comment": "In-session /autoresearch campaigns, enabled by the autoresearch harness component independently of bench. One initial authorization bounds all parent turns and experiments. Generated skills stay outside the execution fingerprint. workers is shared across a campaign's runs; campaigns pause when the terminal closes and require explicit resume. Legacy benchmarks.campaigns overrides are accepted; these top-level settings take precedence.",
+    "dir": "autoresearch",
+    "workers": 6,
+    "maxExperiments": 20,
+    "maxDecisions": 40,
+    "parentTurnCostUsd": 3,
+    "parentTurnMaxResponses": 40,
+    "reportReserveUsd": 1,
+    "evidenceChars": 100000,
+    "artifactPageBytes": 20000,
+    "minFreeMemoryMiB": 256,
+    "minFreeDiskMiB": 1024,
+    "literatureTimeoutSeconds": 30,
+    "literatureMaxBytes": 2000000,
+    "literatureMaxRequests": 30
+  },
+  "subagents": {
+    "$comment": "Independent task delegation without /autoresearch. Children have separate RPC sessions, transcripts and limits; read mode keeps the project read-only, write mode permits edits. Children cannot delegate recursively. Limits apply across one parent session; credentials use the shared worker environment/Keychain/broker path.",
+    "dir": "subagents", "maxConcurrent": 3, "maxTasks": 20, "maxCostUsd": 3, "maxTotalCostUsd": 20,
+    "maxTurns": 80, "timeoutMinutes": 20, "startupTimeoutSeconds": 90, "rpcTimeoutSeconds": 60,
+    "maxWaitSeconds": 60, "resultChars": 20000
+  },
+  "actions": {
+    "$comment": "Theoria's commands as actions: one definition behind both its slash command (for you) and the agent's `tool` tool (for the model), with a structured result. An action runs inline (inside the tool call) or deferred (it needs the conversation, like /prove: queued during the agent's turn, run through queueCommand when the turn ends, its verdict sent back to the agent). model: who may run what without you, per surface (terminal, bot, trial): allow, ask (a confirmation; refused where no one can answer) or deny. An action missing from model is denied, so a new command never reaches the agent by accident; system actions (installing, switching project or type, MCP, the Telegram connection) are never listed. While a deferred action runs, the agent cannot start another (depth 1). maxDeferredPerSession bounds how many deferred actions the agent may start in one session; repeatLimit asks before the same action with the same input runs again that many times in a row.",
+    "tool": "theoria",
+    "maxDeferredPerSession": 12,
+    "repeatLimit": 3,
+    "queueCommand": "theoria-queue",
+    "model": [
+      { "action": "formalize", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "prove", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "compress", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "claims", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "claim", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "artifacts", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "artifact", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "run-status", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "run-update", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "run-fork", "terminal": "ask", "bot": "ask", "trial": "deny" },
+      { "action": "project-status", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "lean-status", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "latex-status", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "latex-pdf", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "latex-create", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "latex-update", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "benchmark-list", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "benchmark-status", "terminal": "allow", "bot": "allow", "trial": "deny" },
+      { "action": "benchmark-run", "terminal": "ask", "bot": "ask", "trial": "deny" },
+      { "action": "autoresearch-start", "terminal": "allow", "bot": "deny", "trial": "deny" },
+      { "action": "autoresearch-status", "terminal": "allow", "bot": "deny", "trial": "deny" }
+    ]
+  },
+  "mcp": {
+    "$comment": "MCP servers, through Pi's own /mcp. Pi reads mcp.json in its agent directory and, in a trusted project, .pi/mcp.json; Theoria then applies the session's project type (projectTypes.<type>.mcpServers and otherServers). Servers a project defines in its own .pi/mcp.json always load there. A server Theoria manages is started as `theoria <launchSubcommand> <server>`, which removes secret variables (sandbox.secretEnvPattern) from its environment first.",
+    "launchSubcommand": "mcp-launch"
+  },
+  "leanSearch": {
+    "$comment": "Mathlib search through lean-lsp-mcp, the MCP server `server`. /lean search install installs package==version with uv, with a Python of its own (python), into installDir in Theoria's agent directory, and adds the server to mcp.json; /mcp turns it off. The baseline theoria profile offers search only; a harness profile's leanLspTools enables selected read-only LSP tools in addition. Remaining disabledTools are switched off in the server, including the unavailable LeanSearch backend. Loogle and Lean Finder are remote services (about 3 requests per 30 s each); localLoogle builds a Loogle index per Mathlib version under cacheDir instead (minutes, about 13 GB of memory). cacheDir is the only part of installDir a bot session may write. toolLines supplies descriptions for enabled tools; guideline is the search rule.",
+    "server": "lean-lsp",
+    "package": "lean-lsp-mcp",
+    "version": "0.31.0",
+    "python": "3.12",
+    "uvCandidates": ["~/.local/bin/uv", "/opt/homebrew/bin/uv", "/usr/local/bin/uv"],
+    "installDir": "lean-lsp-mcp",
+    "cacheDir": "cache",
+    "installTimeoutSeconds": 600,
+    "requestTimeoutSeconds": 180,
+    "logLevel": "ERROR",
+    "localLoogle": false,
+    "topK": 10,
+    "batchGuideline": "For high-value structural replacements, batch two or three independent searches using complementary name, type-pattern, and semantic formulations. Consolidate the results before editing. Avoid repeating near-identical queries across rounds.",
+    "description": "Mathlib search: Loogle, Lean Finder and local search (lean-lsp-mcp)",
+    "toolLines": [
+      { "tool": "lean_loogle", "line": "search Mathlib with Loogle syntax: comma-separated filters (AND), quoted name substrings, unquoted known constants, or Lean type patterns. Valid: `\"mul_comm\"`, `Real.sin, \"add\"`, `\"Matrix\", \"mul_comm\"`. NEVER `\"Matrix\" \"mul_comm\"` or `Matrix \"commute\"`: filters require commas. Quote guessed names as substrings; use Lean Finder for natural language" },
+      { "tool": "lean_leanfinder", "line": "search Mathlib semantically, by meaning or proof state (Lean Finder)" },
+      { "tool": "lean_local_search", "line": "look up declaration names in this session's own Mathlib, offline" },
+      { "tool": "lean_goal", "line": "inspect proof goals at file_path and line (1-indexed); omit column for before/after tactic states, use format=structured for hypotheses and targets" },
+      { "tool": "lean_term_goal", "line": "inspect the expected type at a Lean expression or hole using file_path, line and optional column (1-indexed)" },
+      { "tool": "lean_hover_info", "line": "inspect a Lean identifier's type signature and documentation at file_path, line and column (1-indexed)" },
+      { "tool": "lean_diagnostic_messages", "line": "read current Lean compiler errors and warnings for file_path; timeout_s bounds the wait for elaboration" },
+      { "tool": "lean_multi_attempt", "line": "try tactic snippets at the current file_path and tactic line, optionally column, on isolated scratch copies; returns goals and diagnostics. Usually try 3–5 distinct candidates. Use smaller batches for cold or expensive goals, and larger batches when measured latency permits. Avoid redundant candidates and split batches that approach the request timeout. Cold source/import elaboration and sequential scratch checks share the MCP request window. Re-read changed line positions and preserve local indentation. For local heartbeat screening use tactic syntax #count_heartbeats tac, NOT #count_heartbeats in tac; raw tactic ticks / 1000 give host HB units. Errors, sorry warnings or open goals are not a completed proof; full-file host verification is still required" },
+      { "tool": "lean_code_actions", "line": "get resolved source edits for simp?, exact?, apply? and other suggestions at file_path and line; edits are not applied automatically and must be verified after application" },
+      { "tool": "lean_run_code", "line": "check self-contained Lean code including imports in an isolated scratch document; returns diagnostics, not host verification or compression scores" },
+      { "tool": "lean_profile_proof", "line": "profile the theorem starting at file_path and line; slow, returns per-line timings in milliseconds, not heartbeats. Extracts the theorem with imports only, so same-file helper dependencies may be unavailable; prefer host full-file metrics in that case" }
+    ],
+    "guideline": "Find Mathlib lemmas with the Mathlib search tools first: Loogle for names and type patterns, Lean Finder for natural language; use grep only to read a file you have already found. Loogle combines filters with commas, not spaces; quote name substrings and keep known Lean constants unquoted.",
+    "disabledTools": [
+      "lean_leansearch",
+      "lean_file_outline", "lean_diagnostic_messages", "lean_code_actions", "lean_goal", "lean_term_goal", "lean_hover_info",
+      "lean_completions", "lean_declaration_file", "lean_references", "lean_hammer_premise", "lean_multi_attempt", "lean_verify",
+      "lean_minimal_hypotheses", "lean_profile_proof", "lean_get_widgets", "lean_get_widget_source", "lean_run_code", "lean_build"
+    ]
+  },
+  "harness": {
+    "$comment": "Harness profiles: which of Theoria's components a session loads, so Theoria can be compared with plain Pi. A component not in the profile is not loaded at all: its tools, instructions and commands are absent from the session. Components: welcome (the header: the animated Theta logo), tui (footer, framed editor, telemetry, thinking peek, /tui), project (/project, /new-project), actions (the agent's theoria tool), agents (independent subagent tasks), lean (lean_check, the Lean section of the instructions, /lean), search (Mathlib search: the lean-lsp MCP server and its section of the instructions; needs lean and mcp), mcp (MCP servers at all; without it no server starts), workflows (/formalize, /prove, /compress; needs lean), research (research runs, claims, artifacts), plan (proof and research plans), bench (/benchmark), autoresearch (/autoresearch campaigns; independent of bench), telegram (/connect-bot and notifications), goals (pi-goal-x), render (pi-better-render). The bot's sandbox, file guard and secret stripping apply under every profile; they add nothing to the context. A benchmark trial loads only trialComponents of its profile (and goals, when its trialEscalation is not none) and only its trialTools. leanExtras: Lean add-ons (lean.extras) every session of the profile uses, and its benchmark trials; trialPlan: none, advised (the plan tool is there and its guideline says when to use it) or required (also: a trial that stops with sorry left must first make a valid proof plan, see plan); trialEscalation: none, on-failure (a trial that fails or gives up continues as a pi-goal-x goal, see benchmarks.escalation) or always (every trial is a goal from its first message). Choose a profile with `theoria --<flag> <name>` or THEORIA_HARNESS; default otherwise; `theoria harness` lists them.",
+    "default": "theoria-lsp",
+    "flag": "harness",
+    "trialComponents": ["lean", "search", "mcp"],
+    "profiles": [
+      {
+        "name": "theoria", "description": "Everything Theoria adds",
+        "components": ["welcome", "tui", "project", "actions", "agents", "lean", "search", "mcp", "workflows", "latex", "research", "plan", "bench", "autoresearch", "telegram", "goals", "render"],
+        "trialEscalation": "none",
+        "trialPlan": "required",
+        "leanExtras": [],
+        "leanLspTools": [],
+        "trialTools": ["read", "write", "edit", "bash", "grep", "find", "ls", "lean_check", "plan", "mcp__lean_lsp__lean_loogle", "mcp__lean_lsp__lean_leanfinder", "mcp__lean_lsp__lean_local_search"]
+      },
+      {
+        "name": "theoria-lsp", "description": "Theoria with LSP inspection and isolated tactic/code probes",
+        "$comment": "leanLspTools is the per-profile selection: it enables these server tools, adds direct exposure in Lean project types, and appends their MCP names to the benchmark trial tool allowlist. The baseline profiles leave it empty.",
+        "components": ["welcome", "tui", "project", "actions", "agents", "lean", "search", "mcp", "workflows", "latex", "research", "plan", "bench", "autoresearch", "telegram", "goals", "render"],
+        "trialEscalation": "none",
+        "trialPlan": "required",
+        "leanExtras": [],
+        "leanLspTools": ["lean_goal", "lean_term_goal", "lean_hover_info", "lean_diagnostic_messages", "lean_multi_attempt", "lean_code_actions", "lean_run_code", "lean_profile_proof"],
+        "trialTools": ["read", "write", "edit", "bash", "grep", "find", "ls", "lean_check", "plan", "mcp__lean_lsp__lean_loogle", "mcp__lean_lsp__lean_leanfinder", "mcp__lean_lsp__lean_local_search"]
+      },
+      {
+        "name": "theoria-hammer", "description": "Everything Theoria adds, with LeanHammer in every session and benchmark trial",
+        "components": ["welcome", "tui", "project", "actions", "agents", "lean", "search", "mcp", "workflows", "latex", "research", "plan", "bench", "autoresearch", "telegram", "goals", "render"],
+        "trialEscalation": "none",
+        "trialPlan": "required",
+        "leanExtras": ["hammer"],
+        "leanLspTools": [],
+        "trialTools": ["read", "write", "edit", "bash", "grep", "find", "ls", "lean_check", "plan", "mcp__lean_lsp__lean_loogle", "mcp__lean_lsp__lean_leanfinder", "mcp__lean_lsp__lean_local_search"]
+      },
+      {
+        "name": "theoria-goal", "description": "Theoria; a benchmark trial that fails or gives up continues as a pi-goal-x goal",
+        "components": ["welcome", "tui", "project", "actions", "agents", "lean", "search", "mcp", "workflows", "latex", "research", "plan", "bench", "autoresearch", "telegram", "goals", "render"],
+        "trialEscalation": "on-failure",
+        "trialPlan": "none",
+        "leanExtras": [],
+        "leanLspTools": [],
+        "trialTools": ["read", "write", "edit", "bash", "grep", "find", "ls", "lean_check", "mcp__lean_lsp__lean_loogle", "mcp__lean_lsp__lean_leanfinder", "mcp__lean_lsp__lean_local_search", "get_goal", "update_goal", "set_goal_tasks", "update_goal_task"]
+      },
+      {
+        "name": "theoria-goal-always", "description": "Theoria; every benchmark trial runs as a pi-goal-x goal from the start",
+        "components": ["welcome", "tui", "project", "actions", "agents", "lean", "search", "mcp", "workflows", "latex", "research", "plan", "bench", "autoresearch", "telegram", "goals", "render"],
+        "trialEscalation": "always",
+        "trialPlan": "none",
+        "leanExtras": [],
+        "leanLspTools": [],
+        "trialTools": ["read", "write", "edit", "bash", "grep", "find", "ls", "lean_check", "mcp__lean_lsp__lean_loogle", "mcp__lean_lsp__lean_leanfinder", "mcp__lean_lsp__lean_local_search", "get_goal", "update_goal", "set_goal_tasks", "update_goal_task"]
+      },
+      {
+        "name": "lean", "description": "Lean checking only: lean_check and the Lean instructions, nothing else of Theoria",
+        "components": ["lean"],
+        "trialEscalation": "none",
+        "trialPlan": "none",
+        "leanExtras": [],
+        "leanLspTools": [],
+        "trialTools": ["read", "write", "edit", "bash", "grep", "find", "ls", "lean_check"]
+      },
+      {
+        "name": "bare", "description": "Pi as it ships: no Theoria packages, no MCP servers, Pi's default tools",
+        "components": [],
+        "trialEscalation": "none",
+        "trialPlan": "none",
+        "leanExtras": [],
+        "leanLspTools": [],
+        "trialTools": ["read", "bash", "edit", "write"]
+      }
+    ]
+  },
+  "launcher": {
+    "$comment": "piPackages: Pi packages from npm, bundled as dependencies and loaded like packages/*. piSubcommands and modelFlags tell the launcher when not to choose a default model.",
+    "piPackages": ["pi-better-render", "pi-goal-x"],
+    "piSubcommands": ["install", "remove", "uninstall", "update", "list", "config", "auth", "mcp"],
+    "modelFlags": ["model", "provider", "models", "list-models"],
+    "betterRenderDir": "better-render"
+  },
+  "bedrock": {
+    "$comment": "The model Theoria starts on when AWS credentials are present and nothing else chose one. THEORIA_BEDROCK_MODEL overrides defaultModel. awsProfile: the AWS profile (e.g. an SSO profile) sessions started by `theoria bot` use; empty means they inherit the credentials in the environment that started the bot. region: the Bedrock region when AWS_REGION and AWS_DEFAULT_REGION are unset; empty means the profile's own region in ~/.aws/config. Pi does not read the profile's region itself. credentialBroker: with awsProfile set, `theoria bot` resolves the profile itself (SSO, credential_process, or login) outside the sandbox, and serves only the resulting short-lived keys to its sessions over 127.0.0.1 with a per-run token, so a session never sees ~/.aws or the tools that sign in. Keys are fetched again refreshBeforeSeconds before they expire; keys a credential_process gives without an expiry are treated as valid for unknownExpirySeconds, since the AWS SDK requires one.",
+    "provider": "amazon-bedrock",
+    "ultrafast": {
+      "$comment": "Selectable Ultrafast aliases using existing Bedrock auth and each real modelId with additionalModelRequestFields.service_tier=ultrafast. Top-level fields preserve the Astra configuration; additionalModels adds other aliases. Rates in USD per million tokens replace each standard model's entire cost table (no inherited standard-tier prices); sourced from models.dev experimental.modes.ultrafast, 2026-10-11.",
+      "enabled": true,
+      "aliasId": "us.openai.gpt-6-astra-ultrafast",
+      "modelId": "us.openai.gpt-6-astra",
+      "name": "GPT-6 Astra (US) Ultrafast",
+      "cost": { "input": 66, "output": 330, "cacheRead": 6.6, "cacheWrite": 82.5 },
+      "additionalModels": [
+        {
+          "aliasId": "us.openai.gpt-6.1-sol-ultrafast",
+          "modelId": "us.openai.gpt-6.1-sol",
+          "name": "GPT-6.1 Sol (US) Ultrafast",
+          "cost": { "input": 13.2, "output": 66, "cacheRead": 0.66, "cacheWrite": 16.5 }
+        }
+      ]
+    },
+    "awsProfile": "",
+    "region": "",
+    "credentialBroker": {
+      "refreshBeforeSeconds": 600,
+      "unknownExpirySeconds": 900,
+      "fetchTimeoutSeconds": 120
+    },
+    "defaultModel": "global.anthropic.claude-opus-5-5",
+    "credentialEnv": [
+      "AWS_BEARER_TOKEN_BEDROCK", "AWS_ACCESS_KEY_ID", "AWS_PROFILE",
+      "AWS_CONTAINER_CREDENTIALS_FULL_URI", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_WEB_IDENTITY_TOKEN_FILE"
+    ]
+  },
+  "welcome": {
+    "$comment": "The startup header. {version} in footnote is Pi's version. ansi256 is the colour used where the terminal has no true colour. Keep every logo row the same width.",
+    "windowTitle": "Theoria Labs",
+    "title": "T H E O R I A   L A B S",
+    "tagline": "Autoresearch + Lean. Verified discovery engine.",
+    "footnote": "on Pi {version} · / for commands",
+    "noProjectHint": "Not a Theoria project yet: /new-project",
+    "color": { "hex": "#76b900", "ansi256": 112 },
+    "logo": [
+      "    ▄▄█████▄▄    ",
+      "  ▄██▀     ▀██▄  ",
+      " ██▀         ▀██ ",
+      " ██  ███████  ██ ",
+      " ██▄         ▄██ ",
+      "  ▀██▄     ▄██▀  ",
+      "    ▀▀█████▀▀    "
+    ]
+  },
+  "tui": {
+    "$comment": "Theoria's terminal interface (the tui component), adapted from pi-open-tui (MIT): a two-line footer (cwd, git, runtime, context, tokens, cost, model and thinking level), a framed editor, per-turn telemetry (tokens per second, time to first token, stalls) and a thinking peek in place of Thinking.... pinnedStatuses are extension statuses shown in the footer's first line instead of the status line below (Lean and Mathlib first). /tui changes the settings, saved to the user config. The header is the welcome component: the Theta logo's intro (logo.intro), then (logo.pulse) a slow brightness pulse. intro shear (as on the Theoria website): the Theta holds for holdMs, then is sheared row by row across the logo column and re-assembles, over shearMs; intro sweep: a gradient band draws it in over sweepFrames frames. frameMs per animation frame, pulseMs per pulse cycle. Neither animates outside the terminal interface (RPC, the bot, benchmark trials).",
+    "enabled": true,
+    "inlineFooter": false,
+    "settingsLanguage": "en",
+    "cursorStyle": "block",
+    "icons": { "mode": "auto" },
+    "footerSegments": {
+      "projectName": true, "cwd": true, "hostname": false, "sessionName": false, "gitBranch": true, "gitStatus": true, "gitCommit": false,
+      "runtime": true, "context": true, "tokens": true, "cost": true, "extensionStatuses": true, "capitalizeProviderName": true
+    },
+    "telemetry": { "enabled": true, "tps": true, "ttft": true, "duration": true, "tokens": true, "stalls": true, "cost": true },
+    "thinkingPeek": { "lines": 1 },
+    "pinnedStatuses": ["theoria-lean", "theoria-run", "theoria-bench"],
+    "logo": { "animate": true, "intro": "shear", "holdMs": 400, "shearMs": 2400, "frameMs": 45, "sweepFrames": 16, "pulse": true, "pulseMs": 3200, "tips": 6 }
+  },
+  "lean": {
+    "extras": [
+      {
+        "$comment": "Lean add-ons built once per Mathlib version in lean.extrasDir (in Theoria's agent folder) as a Lake workspace: an APFS copy-on-write clone reuses Mathlib's build files; the add-on requires additional disk space. The installer preserves Mathlib's dependency pins and warms native imports for read-only trials. A project turns one on (/lean extras on <name>, saved in its lean.json), or a harness profile does for its sessions and trials (harness.profiles[].leanExtras). Only one add-on workspace can be active at a time. versions maps an exact Mathlib version to an add-on revision; other versions are unavailable. tools are executables the add-on finds relative to the working directory, linked into .lake when enabled. instructions go into the agent's Lean section while it is on. Existing Lake projects own their dependencies through their lakefile.",
+        "name": "hammer",
+        "title": "LeanHammer",
+        "package": "Hammer",
+        "repo": "https://github.com/JOSHCLUNE/LeanHammer",
+        "target": "Hammer",
+        "versions": [{ "mathlib": "v4.28.0", "rev": "v4.28.0" }],
+        "tools": [{ "path": ".lake/packages/auto/.lake/build/zipperposition-bin-macos-big-sur.exe", "link": ".lake/build/zipperposition-bin-macos-big-sur.exe" }],
+        "installTimeoutSeconds": 3600,
+        "instructions": [
+          "LeanHammer is available: `import Hammer` and try `by hammer` (or `hammer [lemma, …]` with lemmas you know help) on a goal. It searches for a proof and suggests a tactic script: replace the `hammer` call with that script and retain its required tactic imports, so checking the proof no longer reruns Hammer or calls its premise server. Confirm the reconstructed proof with Lean.",
+          "Its options depend on its version (an unknown option is an error that names the valid ones). Premise selection asks a remote server (leanpremise.net); without the network, `hammer {aesopPremises := 0, autoPremises := 0}`. If it is slow, give it the lemmas you expect instead, or disable a solver (`disableAuto := true`)."
+        ]
+      }
+    ],
+    "extrasDir": "lean-envs",
+    "toolchainPrefix": "leanprover/lean4:v",
+    "settingsFile": "lean.json",
+    "inventoryFile": "lean-inventory.json",
+    "leanPathCacheFile": "lean-paths.json",
+    "discovery": {
+      "$comment": "Mathlib checkouts are found up to homeScanDepth folders below the home directory, never inside skipDirs.",
+      "homeScanDepth": 3,
+      "skipDirs": ["Library", "Applications", "Pictures", "Movies", "Music", "node_modules", "Public"],
+      "elanTimeoutSeconds": 15,
+      "gitTimeoutSeconds": 10,
+      "lakeEnvTimeoutSeconds": 120
+    },
+    "check": {
+      "$comment": "lean_check. leanArgs apply when checking outside a Lean project; autoImplicit is off as in Mathlib, so a typo is an error rather than a new variable.",
+      "defaultTimeoutSeconds": 300,
+      "leanArgs": ["-DautoImplicit=false"],
+      "maxMessages": 30,
+      "maxMessageChars": 1500,
+      "maxWarningsShown": 10,
+      "maxHeartbeatCommands": 12,
+      "maxRawOutputChars": 2000
+    },
+    "install": {
+      "$comment": "/lean install. expectedGigabytes is shown before an install and compared with free space.",
+      "repository": "https://github.com/leanprover-community/mathlib4",
+      "tagPattern": "v4.*",
+      "expectedGigabytes": 7,
+      "listTimeoutSeconds": 30,
+      "cloneTimeoutMinutes": 30,
+      "cacheTimeoutMinutes": 120,
+      "verifyTimeoutMinutes": 10,
+      "buildTimeoutMinutes": 360,
+      "progressChars": 80,
+      "errorChars": 400,
+      "errorLines": 3
+    }
+  },
+  "latex": {
+    "$comment": "One paper per project: /latex paper create, paper update, pdf, status. Paths below are relative to the project (paperDir), .theoria (settingsFile and stateDir), or the agent folder (installDir). Existing TeX Live supplies the engines; setup installs relocatable packages with tlmgr into Theoria's own TEXMFHOME, never into the system distribution. binDirs supplements PATH. Each compile records a fresh PDF, log, input hashes and tool versions in stateDir/builds. Paper workflows preserve source snapshots, use project evidence, and stop at their attempt/time/cost limits. latex is a harness component and an independent project-type capability.",
+    "settingsFile": "latex.json",
+    "stateDir": "latex",
+    "paperDir": "paper",
+    "mainFile": "main.tex",
+    "engine": "pdflatex",
+    "engines": ["pdflatex", "xelatex", "lualatex"],
+    "binDirs": ["/Library/TeX/texbin", "/opt/homebrew/bin", "/usr/local/bin"],
+    "installDir": "latex",
+    "latexmk": { "repo": "https://github.com/debian-tex/latexmk.git", "rev": "54a6127fb320f0b4582bf8ade3c67e4a74827e83" },
+    "packages": [
+      { "name": "latexmk", "file": "latexmk.pl" },
+      { "name": "amsmath", "file": "amsmath.sty" },
+      { "name": "amsfonts", "file": "amssymb.sty" },
+      { "name": "graphics", "file": "graphicx.sty" },
+      { "name": "hyperref", "file": "hyperref.sty" }
+    ],
+    "probeTimeoutSeconds": 15,
+    "installTimeoutSeconds": 600,
+    "compileTimeoutSeconds": 180,
+    "maxPasses": 5,
+    "workflow": { "maxAttempts": 3, "timeoutMinutes": 15, "maxCostUsd": 5 },
+    "context": { "extensions": [".md", ".txt", ".lean", ".csv", ".bib"], "maxFiles": 40, "maxFileChars": 6000, "maxChars": 30000 }
+  },
+  "goals": {
+    "$comment": "Goals, from the pi-goal-x package (/goal, /sisyphus, /goal-list, …): a project can have several open goals, each with tasks the agent works through and an optional model auditor. A goal being complete is the agent's and the auditor's judgement, not a Lean verification; /status says so, and shows Lean's own progress separately. dir and archivedDir are where pi-goal-x keeps a project's goals; settingsFile is its global settings, copied into bot sessions with maxAutonomousRuns defaulting to botMaxAutonomousRuns (pi-goal-x's own default is unlimited). telegramCommands are offered in Telegram for every project type; notifyTypes are the pi-goal-x messages (audit results) sent to Telegram as notifications.",
+    "dir": ".pi/goals",
+    "archivedDir": ".pi/goals/archived",
+    "settingsFile": "pi-goal-x-settings.json",
+    "botMaxAutonomousRuns": 20,
+    "maxShown": 5,
+    "notifyTypes": ["pi-goal-audit-event"],
+    "telegramCommands": [
+      { "command": "goal", "description": "Plan a goal with the agent: /goal <idea>" },
+      { "command": "goal-direct", "description": "Start a goal at once: /goal_direct <objective>" },
+      { "command": "sisyphus", "description": "Plan an ordered, step-by-step goal" },
+      { "command": "goal-list", "description": "List this project's open goals" },
+      { "command": "goal-status", "description": "The focused goal and its tasks" },
+      { "command": "goal-focus", "description": "Choose which open goal to work on" },
+      { "command": "goal-pause", "description": "Pause the focused goal" },
+      { "command": "goal-resume", "description": "Resume a paused or blocked goal" },
+      { "command": "goal-tweak", "description": "Revise the focused goal: /goal_tweak <change>" },
+      { "command": "goal-clear", "description": "Archive the focused goal" }
+    ]
+  },
+  "connectors": {
+    "$comment": "Connectors that reach Theoria from outside the terminal. Telegram: the bot token is in the macOS Keychain under keychainService/keychainAccount, never in a file. `theoria bot` is the one process that reads the bot's updates; it starts a sandboxed session per project and stops it after sessionIdleMinutes. notifyMinSeconds: terminal runs shorter than this send no Telegram notification. Bot sessions run Pi in <agent dir>/<sessionPiDir>, with an empty credential store of their own and the sessionSettings keys copied from Theoria's settings, so the keys and OAuth tokens in Theoria's auth.json never enter the sandbox. API keys for them are environment variables kept in the Keychain (account secretAccountPrefix + name), set with `theoria bot secret set <NAME>`.",
+    "telegram": {
+      "maxBenchmarkCostUsd": 25,
+      "apiBase": "https://api.telegram.org",
+      "botFatherUrl": "https://t.me/BotFather",
+      "keychainService": "theoria-cli",
+      "keychainAccount": "telegram-bot",
+      "stateDir": "telegram",
+      "pairingMinutes": 10,
+      "pollTimeoutSeconds": 25,
+      "requestTimeoutSeconds": 15,
+      "backoffMaxSeconds": 30,
+      "sessionIdleMinutes": 30,
+      "sessionStartTimeoutSeconds": 60,
+      "typingIntervalSeconds": 5,
+      "maxMessageChars": 3800,
+      "commandDescriptionChars": 200,
+      "notifyMinSeconds": 0,
+      "launchdLabel": "com.theoria.bot",
+      "sessionPiDir": "bot-pi",
+      "sessionSettings": ["defaultProvider", "defaultModel", "defaultThinkingLevel", "enabledModels"],
+      "secretAccountPrefix": "env:"
+    }
+  },
+  "sandbox": {
+    "$comment": "The OS sandbox (macOS sandbox-exec) around every session `theoria bot` starts. AWS credentials reach sessions from the bot's credential broker (bedrock.credentialBroker), so ~/.aws stays unreadable. Reads under denyReadUnder are refused except the project folders, Theoria's own install and data, the Lean toolchains and Mathlib checkouts, and allowRead; writes are refused everywhere except that one project, the temporary directory, Theoria's agent directory and allowReadWrite. Network is allowed. denyExec programs cannot be run at all. In Theoria's agent directory a session may write only its own Pi directory (connectors.telegram.sessionPiDir) and agentWritable, so it cannot add an extension or change settings that an unsandboxed terminal session would then load, and read nothing in agentUnreadable: Pi's stored keys and OAuth tokens, the bot's pairing state, terminal conversations. protectedProjectFiles are files in the project that make a terminal session (outside the sandbox) run code or change its settings once the project is trusted, which Pi decides by folder: a session may not write them, nor replace the project's .pi folder. Environment variables whose names match secretEnvPattern reach the Pi process, which needs them to call its model, but are removed from every command the agent's bash runs.",
+    "denyReadUnder": "~",
+    "allowRead": ["~/.elan", "~/.gitconfig"],
+    "allowReadWrite": [],
+    "agentWritable": ["better-render", "lean-inventory.json", "lean-paths.json", "lean-lsp-mcp/cache", "latex/cache"],
+    "protectedProjectFiles": [".pi/settings.json", ".pi/mcp.json", ".pi/pi-goal-x-settings.json", ".pi/extensions", ".pi/skills", ".pi/prompts", ".pi/themes", ".pi/SYSTEM.md", ".pi/APPEND_SYSTEM.md", ".agents"],
+    "agentUnreadable": ["auth.json", "telegram", "sessions"],
+    "secretEnvPattern": "(_API_KEY|_TOKEN|_SECRET|_PASSWORD|SECRET_ACCESS_KEY|_ACCESS_KEY_ID)$|^AWS_CONTAINER_",
+    "denyExec": ["/usr/bin/security"]
+  },
+  "workflows": {
+    "$comment": "/formalize, /prove and /compress. defaults apply when a prompt file's frontmatter leaves a setting out; limits bound what a prompt file may set.",
+    "standardAxioms": ["propext", "Quot.sound", "Classical.choice"],
+    "baselineCacheDir": "compression-baselines",
+    "awake": { "$comment": "Hold a macOS idle-sleep assertion while a Lean workflow runs; release on every exit path.", "preventSleep": true },
+    "compression": {
+      "$comment": "Optimization rounds, separate from maxAttempts repair attempts per round. Score = weighted proof-token reduction, heartbeat reduction, and measured compatibility percentage; optional loc weight retains the legacy significant-LOC objective. Weights are nonnegative and sum to one. An explicitly supplied scoreWeights object replaces all weights (omitted weights are zero). Tokenizer is a pinned local BPE encoding, not a claim of exact Arena tokenizer parity. compatibilityProjects lists prepared Lake project roots, relative to the workflow cwd or absolute; the unchanged source is checked against each plus the primary environment. Empty means primary only. Percentages are percentage points, not fractions.",
+      "rounds": 1,
+      "minImprovementPercent": 0.1,
+      "maxHeartbeatRegressionPercent": 10,
+      "scoreWeights": { "loc": 0, "tokens": 0.3333333333333333, "heartbeats": 0.3333333333333333, "compatibility": 0.3333333333333333 },
+      "tokenizer": "cl100k_base",
+      "compatibilityProjects": []
+    },
+    "defaults": { "maxAttempts": 3, "timeoutSeconds": 300, "emphasis": "balanced", "confirmStatement": true },
+    "limits": {
+      "maxAttempts": { "min": 1, "max": 10 },
+      "timeoutSeconds": { "min": 10, "max": 3600 }
+    },
+    "target": {
+      "$comment": "How a free-text input is matched against the project's theorems. Scores are the share of the input's words found in a theorem's name or file name (1 each) or docstring (docstringWeight each).",
+      "skipDirs": [".lake", ".git", "node_modules", ".theoria", "lake-packages", "build", "dist"],
+      "maxFiles": 2000,
+      "maxDepth": 8,
+      "matchThreshold": 0.6,
+      "matchBand": 0.2,
+      "docstringWeight": 0.5,
+      "maxMatches": 12
+    },
+    "naming": {
+      "$comment": "File and theorem names made from a description: its first maxWords words, without stopWords.",
+      "maxWords": 5,
+      "fallbackName": "Statement",
+      "stopWords": ["the", "a", "an", "of", "for", "that", "this", "is", "and", "to", "in", "on", "proof", "prove", "theorem",
+        "lemma", "formalize", "compress", "statement", "my", "please", "with", "about"]
+    },
+    "turn": {
+      "$comment": "A prompt that never starts an agent run (a provider refusing at once) is given up on after startGraceMs.",
+      "startGraceMs": 5000,
+      "pollMs": 500
+    },
+    "card": { "diagnosticsChars": 1500, "replyChars": 600, "readingChars": 110 },
+    "progress": {
+      "$comment": "The progress bar of a lean-goal project: its goal theorem and the project lemmas it uses, each verified when Lean reports only standardAxioms. The first theorem /formalize writes becomes the goal. Cached in the project's cacheFile.",
+      "barWidth": 20,
+      "cacheFile": "progress.json",
+      "timeoutSeconds": 300,
+      "maxItemsShown": 12
+    },
+    "inventory": {
+      "$comment": "What /project status counts: every theorem in the project's .lean files, checked by Lean. A statement is well-formed when Lean reports no error in it; a proof is proved when it rests only on standardAxioms, open when it uses sorry (its own or a dependency's), and has errors when Lean reports one in it. Cached per file in the project's cacheFile and rechecked only for files that changed, after every workflow and on /project status refresh.",
+      "cacheFile": "theorems.json",
+      "timeoutSeconds": 300,
+      "maxShown": 12
+    }
+  }
+}

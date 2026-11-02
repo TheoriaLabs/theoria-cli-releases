@@ -1,0 +1,23 @@
+{
+  "name": "@theoria/pi-bench",
+  "version": "0.1.0",
+  "description": "Theoria's benchmarks: smoke, miniF2F, PutnamBench, Putnam2025 and FormalQualBench; sandboxed trials judged by Comparator; /benchmark",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "keywords": ["pi-package"],
+  "exports": { "./api": "./src/index.ts", "./backend": "./src/backend.ts" },
+  "pi": { "extensions": ["./extensions"] },
+  "dependencies": {
+    "@theoria/pi-agents": "*",
+    "@theoria/shared": "*",
+    "@theoria/pi-lean": "*",
+    "@theoria/pi-workflows": "*",
+    "@theoria/pi-research": "*",
+    "@theoria/pi-telegram": "*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}

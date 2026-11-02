@@ -1,0 +1,12 @@
+{
+  "name": "@theoria/pi-tui",
+  "version": "0.1.0",
+  "description": "Theoria's terminal interface: the animated Theta header, a Starship-style footer with Lean and Mathlib, a framed editor, turn telemetry and a thinking peek (adapted from pi-open-tui and pi-cc-header, MIT)",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "keywords": ["pi-package"],
+  "pi": { "extensions": ["./extensions"] },
+  "dependencies": { "@theoria/shared": "*", "@theoria/pi-lean": "*" },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "*", "@earendil-works/pi-tui": "*", "@earendil-works/pi-ai": "*" }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@theoria/pi-autoresearch",
+  "version": "0.1.0",
+  "description": "Theoria's bounded autoresearch supervisor: campaigns, evidence, literature and /autoresearch",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "keywords": ["pi-package"],
+  "exports": { "./api": "./src/index.ts" },
+  "pi": { "extensions": ["./extensions"] },
+  "dependencies": {
+    "@theoria/shared": "*",
+    "@theoria/pi-bench": "*",
+    "@theoria/pi-workflows": "*",
+    "@theoria/pi-research": "*",
+    "@theoria/pi-telegram": "*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

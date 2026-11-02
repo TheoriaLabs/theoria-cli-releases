@@ -1,0 +1,27 @@
+{
+  "name": "@theoria/pi-core",
+  "version": "0.1.0",
+  "description": "Theoria's core: /new-project, /project and the actions hub",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ]
+  },
+  "dependencies": {
+    "@theoria/shared": "*",
+    "@theoria/pi-lean": "*",
+    "@theoria/pi-workflows": "*",
+    "@theoria/mcp": "*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}

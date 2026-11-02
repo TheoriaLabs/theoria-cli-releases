@@ -1,0 +1,33 @@
+{
+  "name": "@theoria/pi-telegram",
+  "version": "0.1.0",
+  "description": "Theoria's Telegram connector: /connect-bot, the `theoria bot` process, notifications, and the guard for bot sessions",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ]
+  },
+  "dependencies": {
+    "@theoria/shared": "*",
+    "@theoria/pi-lean": "*",
+    "@theoria/pi-workflows": "*",
+    "qrcode": "1.5.4",
+    "@theoria/pi-research": "*",
+    "@theoria/pi-bench": "*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "exports": {
+    "./sandbox": "./src/sandbox.ts",
+    "./session": "./src/session.ts",
+    "./credentials": "./src/credentials.ts",
+    "./bot": "./src/bot.ts"
+  }
+}

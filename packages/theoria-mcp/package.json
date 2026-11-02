@@ -1,0 +1,18 @@
+{
+  "name": "@theoria/mcp",
+  "version": "0.1.0",
+  "description": "Theoria CLI's MCP layer: Pi's own /mcp, with the servers and directly declared tools chosen by project type, and the launcher for the servers Theoria manages. Not a Pi package.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./api": "./src/index.ts"
+  },
+  "dependencies": {
+    "@theoria/shared": "*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-mcp": "*"
+  }
+}

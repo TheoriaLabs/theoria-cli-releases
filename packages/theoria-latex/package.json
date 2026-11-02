@@ -1,0 +1,13 @@
+{
+  "name": "@theoria/pi-latex",
+  "version": "0.1.0",
+  "description": "One project paper: LaTeX dependencies, PDF compilation, evidence-based drafting and updates",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "keywords": ["pi-package"],
+  "exports": { "./api": "./src/index.ts" },
+  "pi": { "extensions": ["./extensions"] },
+  "dependencies": { "@theoria/shared": "*", "@theoria/pi-research": "*" },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "*", "@earendil-works/pi-tui": "*" }
+}

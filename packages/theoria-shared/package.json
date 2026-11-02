@@ -1,0 +1,28 @@
+{
+  "name": "@theoria/shared",
+  "version": "0.1.0",
+  "description": "Theoria CLI's shared library: validated configuration, paths, process running, project types and cards. Not a Pi package.",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./config": "./src/config.ts",
+    "./paths": "./src/paths.ts",
+    "./process": "./src/process.ts",
+    "./project": "./src/project.ts",
+    "./card": "./src/card.ts",
+    "./aws": "./src/aws.ts",
+    "./goals": "./src/goals.ts",
+    "./verdicts": "./src/verdicts.ts",
+    "./events": "./src/events.ts",
+    "./actions": "./src/actions.ts",
+    "./agent-turn": "./src/agent-turn.ts",
+    "./limits": "./src/limits.ts",
+    "./harness": "./src/harness.ts",
+    "./startup": "./src/startup.ts"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}

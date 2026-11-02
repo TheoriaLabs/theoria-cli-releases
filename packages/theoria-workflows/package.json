@@ -1,0 +1,30 @@
+{
+  "name": "@theoria/pi-workflows",
+  "version": "0.1.0",
+  "description": "Theoria's /formalize, /prove and /compress: prompt-driven workflows whose results Lean decides",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "exports": {
+    "./api": "./src/api.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": []
+  },
+  "dependencies": {
+    "@theoria/shared": "*",
+    "@theoria/pi-lean": "*",
+    "js-tiktoken": "1.0.21"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  }
+}

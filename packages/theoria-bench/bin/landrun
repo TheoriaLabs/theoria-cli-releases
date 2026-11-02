@@ -1,0 +1,75 @@
+#!/usr/bin/env node
+/**
+ * A stand-in for landrun (https://github.com/Zouuup/landrun) on macOS, for Comparator: the same command line,
+ * enforced with sandbox-exec instead of Linux Landlock.
+ *
+ *   landrun [--best-effort] [--ro P]… [--rw P]… [--rwx P]… [--rox P]… [--env NAME]… [-ldd] [-add-exec] [--] cmd args…
+ *
+ * - Writes are refused everywhere except --rw/--rwx paths (and /dev); reads follow --ro (Comparator passes `--ro /`).
+ * - Programs may be executed only from --rox/--rwx paths, the command itself (-add-exec) and the system's own program
+ *   folders (/usr/bin, the developer tools: git is a shim there); -ldd is implicit, as dynamic libraries are reads.
+ * - Network is refused, as landrun refuses it without --unrestricted-network.
+ * - The environment holds only the --env variables, as with landrun.
+ * Exit status is the command's. Unknown options stop with status 2 rather than being ignored.
+ */
+import { spawn } from 'node:child_process';
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { delimiter, isAbsolute, join, resolve } from 'node:path';
+
+const args = process.argv.slice(2);
+const ro = [], rw = [], exec = [], env = [];
+let addExec = false;
+let index = 0;
+const take = () => { const value = args[++index]; if (value === undefined) { console.error(`landrun: ${args[index - 1]} needs a value`); process.exit(2); } return value; };
+for (; index < args.length; index += 1) {
+  const arg = args[index];
+  if (arg === '--') { index += 1; break; }
+  if (!arg.startsWith('-')) break;
+  if (arg === '--best-effort' || arg === '-ldd') continue;
+  if (arg === '-add-exec') { addExec = true; continue; }
+  if (arg === '--ro') ro.push(take());
+  else if (arg === '--rw') rw.push(take());
+  else if (arg === '--rwx') { const path = take(); rw.push(path); exec.push(path); }
+  else if (arg === '--rox') { const path = take(); ro.push(path); exec.push(path); }
+  else if (arg === '--env') env.push(take());
+  else { console.error(`landrun (Theoria's sandbox-exec stand-in): unsupported option ${arg}`); process.exit(2); }
+}
+const [command, ...rest] = args.slice(index);
+if (!command) { console.error('landrun: no command'); process.exit(2); }
+
+const real = path => { try { return realpathSync(resolve(path)); } catch { return resolve(path); } };
+const which = name => {
+  if (isAbsolute(name) || name.includes('/')) return real(name);
+  for (const dir of (process.env.PATH ?? '').split(delimiter).filter(Boolean)) {
+    try { return realpathSync(join(dir, name)); } catch { /* next */ }
+  }
+  return name;
+};
+const program = which(command);
+if (addExec) exec.push(program);
+const systemExec = ['/usr/bin', '/bin', '/usr/libexec', '/Library/Developer/CommandLineTools', '/Applications/Xcode.app/Contents/Developer'];
+const quote = path => `"${real(path).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+const readsAll = ro.some(path => real(path) === '/');
+const profile = [
+  '(version 1)',
+  '(allow default)',
+  '(deny network*)',
+  '(allow network* (local unix))',
+  ...(readsAll ? [] : ['(deny file-read*)', `(allow file-read* (literal "/")${[...ro, ...rw, '/usr/lib', '/System', '/private/var/db/dyld', '/dev'].map(path => ` (subpath ${quote(path)})`).join('')})`]),
+  '(deny file-write* (subpath "/"))',
+  `(allow file-write* (subpath "/dev")${rw.map(path => ` (subpath ${quote(path)})`).join('')})`,
+  '(deny process-exec*)',
+  // System programs may run (git is an Xcode shim that runs the real git from the developer tools); writes and network
+  // stay refused for them too.
+  `(allow process-exec*${[...new Set([...systemExec, ...exec])].map(path => ` (subpath ${quote(path)})`).join('')})`,
+  '',
+].join('\n');
+const dir = mkdtempSync(join(tmpdir(), 'landrun-'));
+const file = join(dir, 'profile.sb');
+writeFileSync(file, profile);
+const childEnv = Object.fromEntries(env.filter(name => process.env[name] !== undefined).map(name => [name, process.env[name]]));
+const child = spawn('/usr/bin/sandbox-exec', ['-f', file, program, ...rest], { stdio: 'inherit', env: childEnv });
+for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => child.kill(signal));
+child.on('exit', (code, signal) => { rmSync(dir, { recursive: true, force: true }); process.exit(code ?? (signal ? 128 : 1)); });
+child.on('error', error => { rmSync(dir, { recursive: true, force: true }); console.error(`landrun: ${error.message}`); process.exit(126); });

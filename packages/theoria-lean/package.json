@@ -1,0 +1,27 @@
+{
+  "name": "@theoria/pi-lean",
+  "version": "0.1.0",
+  "description": "Theoria's /lean command: choose and install a Lean and Mathlib version, and check Lean with it",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "pi-package"
+  ],
+  "exports": {
+    "./api": "./src/index.ts"
+  },
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ]
+  },
+  "dependencies": {
+    "@theoria/shared": "*",
+    "@theoria/mcp": "*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}
