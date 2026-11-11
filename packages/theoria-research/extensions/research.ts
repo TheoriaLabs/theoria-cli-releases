@@ -22,15 +22,15 @@ import {
 /**
  * Research runs in a Theoria session, and the project's claims and artifacts.
  *
- * A session belongs to at most one run: `/run new` and `/run fork` start a new session for the run, marked by a
+ * A session belongs to at most one run: `/attack new` and `/attack fork` start a new session for the run, marked by a
  * custom entry in the session file, so resuming that conversation (or the bot's `--continue`) is back in the run.
  * While a session is in a run, the run's goal and the relevant project knowledge are added to the agent's
  * instructions before each turn, workflow verdicts are recorded in the run's events (`THEORIA_RUN_ID`), and claims,
  * artifacts and notes the agent records through the `theoria` tool carry the run's id.
  *
- * A run's autonomous work is pi-goal-x's: `/run new` can start a pi-goal-x goal whose objective begins with the run's
+ * A run's autonomous work is pi-goal-x's: `/attack new` can start a pi-goal-x goal whose objective begins with the run's
  * marker. When pi-goal-x marks that goal complete it is recorded as the agent's and auditor's judgement; only you
- * complete the run (`/run complete`).
+ * complete the run (`/attack complete`).
  */
 
 const entryType = 'theoria-run';
@@ -104,7 +104,7 @@ export default function research(pi: ExtensionAPI) {
     if (goal && current.piGoalId !== goal.id) current = updateRun(ctx.cwd, current.id, run => { run.piGoalId = goal.id; }, { type: 'goal.linked', payload: { piGoalId: goal.id } });
     if (done && !runEvents(ctx.cwd, current.id).some(event => event.type === 'goal.marked_complete')) {
       updateRun(ctx.cwd, current.id, () => {}, { type: 'goal.marked_complete', payload: { piGoalId: done.id, status: done.status, judgement: 'pi-goal-x: the agent and its auditor, not Lean' } });
-      if (ctx.hasUI) ctx.ui.notify(`pi-goal-x marked ${current.id}'s goal complete. That is the agent's and auditor's judgement; /run complete closes the run.`, 'info');
+      if (ctx.hasUI) ctx.ui.notify(`pi-goal-x marked ${current.id}'s goal complete. That is the agent's and auditor's judgement; /attack complete closes the run.`, 'info');
     }
   }
 
@@ -127,7 +127,7 @@ export default function research(pi: ExtensionAPI) {
         if (autonomous && goalCommand) await next.sendUserMessage(`/goal-direct ${goalObjective(run)}`, { expandPromptTemplates: true });
       },
     });
-    if (result.cancelled) ctx.ui.notify(`${run.id} was created, but the session did not switch. /run resume ${run.id} enters it.`, 'warning');
+    if (result.cancelled) ctx.ui.notify(`${run.id} was created, but the session did not switch. /attack resume ${run.id} enters it.`, 'warning');
   }
 
   function goalOpening(run: ResearchRun, autonomous: boolean, hasGoals: boolean) {
@@ -136,7 +136,7 @@ export default function research(pi: ExtensionAPI) {
       ...(run.goal.successCriteria?.length ? ['Success criteria:', ...run.goal.successCriteria.map(item => `- ${item}`)] : []),
       ...(run.parentRunId ? [`Forked from ${run.parentRunId}: the project's claims and artifacts carry over, the conversation does not.`] : []),
       '',
-      autonomous && hasGoals ? 'pi-goal-x works on it autonomously; /run pause stops it.' : 'Work on it in this conversation; /run status shows where it stands.',
+      autonomous && hasGoals ? 'pi-goal-x works on it autonomously; /attack pause stops it.' : 'Work on it in this conversation; /attack status shows where it stands.',
     ];
   }
 
@@ -159,7 +159,7 @@ export default function research(pi: ExtensionAPI) {
 
   async function chooseRun(ctx: Ctx, title: string, filter: (run: ResearchRun) => boolean): Promise<ResearchRun | undefined> {
     const runs = listRuns(ctx.cwd).filter(filter).reverse();
-    if (!runs.length) { ctx.ui.notify('No such runs. /run new starts one.', 'info'); return undefined; }
+    if (!runs.length) { ctx.ui.notify('No such runs. /attack new starts one.', 'info'); return undefined; }
     const labels = runs.map(run => `${run.id === current?.id ? '● ' : ''}${runLine(run)}`);
     const picked = await ctx.ui.select(title, labels);
     return picked ? runs[labels.indexOf(picked)] : undefined;
@@ -181,7 +181,7 @@ export default function research(pi: ExtensionAPI) {
   }
 
   function statusText(cwd: string, run: ResearchRun | undefined): ActionResult {
-    if (!run) return { ok: true, text: 'This session is not in a research run. /run new starts one, /runs lists them.', details: { run: null } };
+    if (!run) return { ok: true, text: 'This session is not in a research run. /attack new starts one, /runs lists them.', details: { run: null } };
     const fresh = getRun(cwd, run.id) ?? run;
     const events = runEvents(cwd, fresh.id);
     const verdicts = events.filter(event => event.type === 'verdict.recorded').slice(-5);
@@ -217,7 +217,7 @@ export default function research(pi: ExtensionAPI) {
       updateRun(cwd, current.id, () => {}, { type: 'run.ready_for_review', payload: { summary: value, by } });
       return { ok: true, text: `${current.id} is marked ready for your review${value ? `: ${value}` : ''}. Only the user completes a run.` };
     }
-    return { ok: false, text: 'Usage: /run update focus <text> | note <text> | ready [summary]' };
+    return { ok: false, text: 'Usage: /attack update focus <text> | note <text> | ready [summary]' };
   }
 
   // ── Commands ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -232,8 +232,8 @@ export default function research(pi: ExtensionAPI) {
     { value: 'update', description: 'focus <text> · note <text> · ready [summary]' },
   ];
 
-  pi.registerCommand('run', {
-    description: 'Research runs: status · new · fork · resume · pause · complete · update',
+  pi.registerCommand('attack', {
+    description: 'Attack a research objective: status · new · fork · resume · pause · complete · update',
     getArgumentCompletions: prefix => runActions.filter(action => action.value.startsWith(prefix.trim())).map(action => ({ value: action.value, label: action.value, description: action.description })),
     handler: async (args, ctx) => {
       let [action = '', ...rest] = args.trim().split(/\s+/);
@@ -246,7 +246,7 @@ export default function research(pi: ExtensionAPI) {
         case 'new': return newRun(ctx, tail);
         case 'fork': {
           const parent = current ?? (tail.match(/^run-\d+$/) ? getRun(ctx.cwd, tail) : undefined);
-          if (!parent) { ctx.ui.notify('Fork from inside a run (/run resume), or /run fork run-003.', 'info'); return; }
+          if (!parent) { ctx.ui.notify('Fork from inside a run (/attack resume), or /attack fork run-003.', 'info'); return; }
           return newRun(ctx, parent === current ? tail : '', parent);
         }
         case 'resume': return resume(ctx, tail);
@@ -262,7 +262,7 @@ export default function research(pi: ExtensionAPI) {
           return;
         }
         case 'update': { const result = updateGoal(ctx.cwd, tail, 'user'); ctx.ui.notify(result.text, result.ok ? 'info' : 'warning'); footer(ctx); return; }
-        default: ctx.ui.notify('Usage: /run [status | new <objective> | fork [objective] | resume [run-id] | pause | complete | update …]', 'error');
+        default: ctx.ui.notify('Usage: /attack [status | new <objective> | fork [objective] | resume [run-id] | pause | complete | update …]', 'error');
       }
     },
   });
@@ -284,7 +284,7 @@ export default function research(pi: ExtensionAPI) {
     description: 'The project\'s research runs, with forks',
     handler: async (_args, ctx) => {
       const runs = listRuns(ctx.cwd);
-      if (!runs.length) { ctx.ui.notify('No research runs yet. /run new starts one.', 'info'); return; }
+      if (!runs.length) { ctx.ui.notify('No research runs yet. /attack new starts one.', 'info'); return; }
       ctx.ui.notify(runTree(runs, current?.id).join('\n'), 'info');
     },
   });
@@ -305,10 +305,10 @@ export default function research(pi: ExtensionAPI) {
     { name: 'claim', usage: claimUsage, summary: 'Show, record, change or link a claim. Only Theoria verifies: `verify` asks Lean (formal), `test` runs a statistical test on a data file (statistical).', execution: 'inline', run: (args, actx) => claimCommand(actx.cwd, args, who('model')) },
     { name: 'artifacts', usage: '/artifacts', summary: 'List the project\'s artifacts.', execution: 'inline', run: async (_args, actx) => artifactsCommand(actx.cwd) },
     { name: 'artifact', usage: artifactUsage, summary: 'Register a project file as an artifact of this run.', execution: 'inline', run: async (args, actx) => artifactCommand(actx.cwd, args, who('model')) },
-    { name: 'run-status', usage: '/run status', summary: 'This run\'s goal, verdicts and progress.', execution: 'inline', run: async (_args, actx) => statusText(actx.cwd, refresh(actx.cwd)) },
-    { name: 'run-update', usage: '/run update focus <text> | note <text> | ready [summary]', summary: 'Record the run\'s current focus or a note, or tell the user it is ready for review.', execution: 'inline', run: async (args, actx) => updateGoal(actx.cwd, args, 'model') },
+    { name: 'run-status', usage: '/attack status', summary: 'This run\'s goal, verdicts and progress.', execution: 'inline', run: async (_args, actx) => statusText(actx.cwd, refresh(actx.cwd)) },
+    { name: 'run-update', usage: '/attack update focus <text> | note <text> | ready [summary]', summary: 'Record the run\'s current focus or a note, or tell the user it is ready for review.', execution: 'inline', run: async (args, actx) => updateGoal(actx.cwd, args, 'model') },
     {
-      name: 'run-fork', usage: '/run fork <objective>', summary: 'Branch a new run from this one (a fresh conversation; claims carry over).', execution: 'deferred',
+      name: 'run-fork', usage: '/attack fork <objective>', summary: 'Branch a new run from this one (a fresh conversation; claims carry over).', execution: 'deferred',
       run: async (args, actx) => {
         if (!current || !actx.command) return { ok: false, text: 'Forking needs a run and runs only deferred.' };
         await newRun(actx.command, args, current);

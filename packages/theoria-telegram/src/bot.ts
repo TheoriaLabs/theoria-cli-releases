@@ -32,13 +32,13 @@ const coreCommands = [
   { command: 'status', description: 'Progress and current run; /status all, /status refresh' },
   { command: 'cancel', description: 'Stop the current run' },
   { command: 'runs', description: 'Research runs of the project' },
-  { command: 'run_new', description: 'Start a research run: /run_new <objective>' },
-  { command: 'run_fork', description: 'Fork the current research run' },
-  { command: 'run_resume', description: 'Back into a research run' },
-  { command: 'run_pause', description: 'Pause the current research run' },
-  { command: 'run_complete', description: 'Complete the current research run' },
+  { command: 'attack_new', description: 'Start a research attack: /attack_new <objective>' },
+  { command: 'attack_fork', description: 'Fork the current research run' },
+  { command: 'attack_resume', description: 'Back into a research run' },
+  { command: 'attack_pause', description: 'Pause the current research run' },
+  { command: 'attack_complete', description: 'Complete the current research run' },
   { command: 'benchmark_list', description: 'Benchmarks and their splits' },
-  { command: 'benchmark_run', description: 'Run a benchmark: /benchmark_run <id> [split] [N]' },
+  { command: 'benchmark_run', description: 'Run a benchmark: /benchmark_run <id> [split] [N] [model=<provider>/<id>]' },
   { command: 'benchmark_status', description: 'Results of the latest benchmark run' },
   { command: 'benchmark_cancel', description: 'Stop a benchmark run' },
   { command: 'benchmark_compare', description: 'Compare two benchmark runs: /benchmark_compare <run> <run>' },
@@ -144,7 +144,7 @@ export class TheoriaBot {
       case 'status': return this.status(args);
       case 'cancel': return this.cancel();
       case 'runs': return this.runs_(args);
-      case 'run_new': case 'run_fork': case 'run_resume': case 'run_pause': case 'run_complete': return this.runCommand(command.slice(4), args);
+      case 'attack_new': case 'attack_fork': case 'attack_resume': case 'attack_pause': case 'attack_complete': return this.runCommand(command.slice(7), args);
       case 'benchmark_list': case 'benchmark_run': case 'benchmark_status': case 'benchmark_cancel': case 'benchmark_compare': return this.benchmark(command.slice(10), args);
       default: return this.workflow(command, args);
     }
@@ -489,17 +489,17 @@ export class TheoriaBot {
     if (!dir) { await this.say('Select a project first: /projects.'); return; }
     const { listRuns, runLine } = await import('@theoria/pi-research/api');
     const runs = listRuns(dir).reverse().slice(0, config().research.statusMaxRuns);
-    await this.say(runs.length ? [`Research runs of ${projectName(dir)}:`, ...runs.map(runLine)].join('\n') : 'No research runs yet. /run_new <objective> starts one.');
+    await this.say(runs.length ? [`Research runs of ${projectName(dir)}:`, ...runs.map(runLine)].join('\n') : 'No research runs yet. /attack_new <objective> starts one.');
   }
 
-  /** `/run_new`, `/run_fork`, …: handed to the project's session as `/run …`, whose questions come back as buttons. */
+  /** `/attack_new`, `/attack_fork`, …: handed to the project's session as `/attack …`, whose questions come back as buttons. */
   private async runCommand(action: string, args: string) {
     const dir = this.selectedDir();
     if (!dir) { await this.say('Select a project first: /projects.'); return; }
-    if (action === 'new' && !args) { await this.say('Usage: /run_new <objective>, e.g. /run_new Determine whether the spectral route proves T'); return; }
+    if (action === 'new' && !args) { await this.say('Usage: /attack_new <objective>, e.g. /attack_new Determine whether the spectral route proves T'); return; }
     const session = await this.ready(dir);
     if (!session) return;
-    this.submit(session, `/run ${action}${args ? ` ${args}` : ''}`);
+    this.submit(session, `/attack ${action}${args ? ` ${args}` : ''}`);
   }
 
   private benchModule() { return import('@theoria/pi-bench/api'); }
@@ -544,7 +544,7 @@ export class TheoriaBot {
     const cap = config().connectors.telegram.maxBenchmarkCostUsd;
     let planned;
     try { planned = await bench.plan({ ...bench.parseRunArgs(args, this.sessionModel(), 'bot'), maxTotalCostUsd: cap }); } catch (error) {
-      await this.say(`${error instanceof Error ? error.message : String(error)}\nUsage: /benchmark_run <${bench.benchmarks.map(benchmark => benchmark.id).join('|')}> [train|val|test] [N or task,task] [harness=<profile>] [cost=$ per trial]`);
+      await this.say(`${error instanceof Error ? error.message : String(error)}\nUsage: /benchmark_run <${bench.benchmarks.map(benchmark => benchmark.id).join('|')}> [train|val|test] [N or task,task] [model=<provider>/<id>] [harness=<profile>] [cost=$ per trial]`);
       return;
     }
     const lines = bench.planLines(planned);
@@ -584,8 +584,9 @@ export class TheoriaBot {
       '/status [all|refresh] – proofs, formalizations, goals, recent runs',
       '/cancel – stop the current run',
       '/goal <idea>, /goal_list, /goal_status, /goal_pause, /goal_resume – goals for this project (several may be open)',
-      '/run_new <objective>, /runs, /run_fork, /run_resume, /run_pause, /run_complete – research runs with a persistent goal',
+      '/attack_new <objective>, /runs, /attack_fork, /attack_resume, /attack_pause, /attack_complete – research runs with a persistent goal',
       `/benchmark_list, /benchmark_run <id> [train|val|test] [N], /benchmark_status, /benchmark_cancel – benchmarks, judged by Comparator (at most $${config().connectors.telegram.maxBenchmarkCostUsd} per run from here)`,
+      '/benchmark_run accepts model=<provider>/<id> for a per-run override; omission uses the bot session default.',
       `Projects live in ${this.owner?.projectsDir ?? 'the projects folder'}; nothing outside it is reachable from here.`,
     ].filter(line => line !== '').join('\n'));
   }

@@ -31,6 +31,9 @@ export interface ActionContext {
   invokedBy: 'user' | 'model';
   hasUI: boolean;
   ui: ExtensionContext['ui'];
+  /** Session model and registry at invocation time, including custom models and aliases. */
+  model: ExtensionContext['model'];
+  modelRegistry: ExtensionContext['modelRegistry'];
   /** The command context, for deferred actions, which drive the conversation. */
   command?: ExtensionCommandContext;
   signal?: AbortSignal;
@@ -39,7 +42,7 @@ export interface ActionContext {
 export interface ActionSpec {
   /** Unique, lowercase with hyphens: `prove`, `run-status`. */
   name: string;
-  /** The slash command a person types for it, as shown to the model: `/prove <theorem>`, `/run status`. */
+  /** The slash command a person types for it, as shown to the model: `/prove <theorem>`, `/attack status`. */
   usage: string;
   /** One line: what it does and when to use it. */
   summary: string;

@@ -24,7 +24,7 @@ Expand on this paper / line of research: $ARGUMENTS
 {{/if}}
 5. **Rank** them and recommend the top one or two, with the reason.
 6. **Offer** to record chosen ideas with `/claim new hypothesis <statement>` and, where a result can be formalized, to
-   `/formalize` it; for a larger direction, `/run new <objective>`. Do not create claims, runs or files on your own.
+   `/formalize` it; for a larger direction, `/attack new <objective>`. Do not create claims, runs or files on your own.
 
 Be concise. Use this project's runs, claims, plan and Lean files where they are relevant. Cite only sources you
 actually fetched in this session; never invent a reference, theorem number or result. Mark guesses as guesses, and

@@ -1,6 +1,6 @@
 {
   "name": "theoria-cli",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "description": "Lightweight Theoria CLI harness built on the Pi coding agent",
   "license": "Apache-2.0",
   "private": true,

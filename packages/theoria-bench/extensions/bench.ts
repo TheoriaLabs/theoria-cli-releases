@@ -39,17 +39,20 @@ export default function bench(pi: ExtensionAPI) {
     },
   });
 
-  function harness(ctx: ExtensionContext) {
+  function harness(ctx: Pick<ExtensionContext, 'model'>) {
     const commit = loadedCommit();
     return { profile: currentProfile().name, piVersion: VERSION, ...(commit ? { theoriaCommit: commit } : {}), ...(startingProjectType() ? { projectType: startingProjectType()!.type } : {}), ...(ctx.model ? { model: `${ctx.model.provider}/${ctx.model.id}` } : {}) };
   }
 
-  async function runCommand(args: string, ctx: ExtensionContext, invokedBy: 'user' | 'model'): Promise<ActionResult> {
-    if (!ctx.model) return { ok: false, text: 'Choose a model first (/model); trials run on it.' };
+  async function runCommand(args: string, ctx: Pick<ExtensionContext, 'cwd' | 'hasUI' | 'ui' | 'model' | 'modelRegistry'>, invokedBy: 'user' | 'model'): Promise<ActionResult> {
     let options;
-    try { options = parseRunArgs(args, `${ctx.model.provider}/${ctx.model.id}`, 'terminal', ctx.cwd); }
+    try { options = parseRunArgs(args, ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined, 'terminal', ctx.cwd); }
     catch (error) { return { ok: false, text: String(error) }; }
     if (!options.benchmarkId) return { ok: false, text: `Usage: ${benchmarkUsage}` };
+    const slash = options.model.indexOf('/');
+    if (!ctx.modelRegistry.find(options.model.slice(0, slash), options.model.slice(slash + 1))) {
+      return { ok: false, text: `Model is not available: ${options.model}. Use /model to see registered models.` };
+    }
     let planned;
     try { planned = await plan(options); } catch (error) { return { ok: false, text: error instanceof Error ? error.message : String(error) }; }
     const lines = planLines(planned);
@@ -60,7 +63,7 @@ export default function bench(pi: ExtensionAPI) {
     if (planned.split === 'test' && config().benchmarks.splits.confirmTest
       && !await ctx.ui.confirm('Run on the test split?', 'Test results are for the final report only. Tuning prompts on them makes them worthless; these trials are marked sealed.')) return { ok: false, text: 'Not started.' };
     const run = start(ctx.cwd, planned, harness(ctx), planned.maxCostUsd, 'terminal', terminalTrialEnv, events());
-    return { ok: true, text: `Started ${run.runId}: ${planned.tasks.length} task(s) of ${planned.benchmark.id} (${planned.split}). /benchmark status shows progress.`, details: { runId: run.runId } };
+    return { ok: true, text: `Started ${run.runId}: ${planned.tasks.length} task(s) of ${planned.benchmark.id} (${planned.split}) using ${planned.config.model}. /benchmark status shows progress.`, details: { runId: run.runId, model: planned.config.model } };
   }
 
   const subcommands = ['list', 'install', 'run', 'status', 'compare', 'resume', 'cancel', 'corpus'];
@@ -124,11 +127,9 @@ export default function bench(pi: ExtensionAPI) {
     { name: 'benchmark-list', usage: '/benchmark list', summary: 'The benchmarks, their splits and Lean compatibility.', execution: 'inline', run: async () => ({ ok: true, text: await listText() }) },
     { name: 'benchmark-status', usage: '/benchmark status [run]', summary: 'Results of a benchmark run, as Comparator judged them.', execution: 'inline', run: async (args, actx) => { const result = statusText(actx.cwd, args.trim() || undefined); return { ok: true, text: result.text, details: result.aggregate ?? null }; } },
     {
-      name: 'benchmark-run', usage: '/benchmark run <id> [train|val|test] [N|tasks] [cost=$]', summary: 'Start a benchmark run (costs money; the user confirms).', execution: 'inline',
-      run: async (args, actx) => runCommand(args, { cwd: actx.cwd, hasUI: actx.hasUI, ui: actx.ui, model: currentModel } as unknown as ExtensionContext, 'model'),
+      name: 'benchmark-run', usage: '/benchmark run <id> [train|val|test] [N|tasks] [model=<provider>/<id>] [cost=$]', summary: 'Start a benchmark run (costs money; the user confirms).', execution: 'inline',
+      promptGuidelines: ['benchmark-run accepts model=<provider>/<id> for each new run; omission uses the session model. To evaluate several models, submit one run per model with an explicit model= argument.'],
+      run: async (args, actx) => runCommand(args, actx, 'model'),
     },
   ]);
-
-  let currentModel: ExtensionContext['model'];
-  pi.on('before_agent_start', (_event, ctx) => { currentModel = ctx.model; });
 }

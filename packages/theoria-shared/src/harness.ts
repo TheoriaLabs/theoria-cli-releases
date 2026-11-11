@@ -27,7 +27,7 @@ export const componentSummary: Record<Component, string> = {
   mcp: 'MCP servers (Pi\'s /mcp); without it none start',
   workflows: '/formalize, /prove, /compress',
   latex: '/latex: paper create, paper update, pdf and status; TeX dependencies and compiler-checked papers',
-  research: 'research runs (their goal and project knowledge in the instructions), /run, /claim, /artifact',
+  research: 'research runs (their goal and project knowledge in the instructions), /attack, /claim, /artifact',
   plan: 'the plan tool (attack angles, milestones, lemmas, checked against Lean), its <plan> section of the instructions, /plan',
   bench: '/benchmark',
   autoresearch: '/autoresearch: bounded research campaigns using benchmark execution',

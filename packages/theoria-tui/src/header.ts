@@ -136,7 +136,7 @@ export function projectLine(cwd: string): string {
 /** The commands worth knowing in this session, in Theoria's order, those that exist here only. */
 export function pickTips(pi: ExtensionAPI, count: number): string[] {
   // The first six are the header's default; the rest stand in where a harness profile lacks some of them.
-  const order = ['lean', 'project', 'prove', 'autoresearch', 'latex', 'help', 'formalize', 'compress', 'run', 'plan', 'benchmark', 'goal', 'tui'];
+  const order = ['lean', 'project', 'prove', 'autoresearch', 'latex', 'help', 'formalize', 'compress', 'attack', 'plan', 'benchmark', 'goal', 'tui'];
   const names = new Set(pi.getCommands().map(command => command.name));
   return order.filter(name => names.has(name)).slice(0, count).map(name => `/${name}`);
 }

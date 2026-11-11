@@ -1,7 +1,7 @@
 {
   "name": "@theoria/pi-research",
   "version": "0.1.0",
-  "description": "Theoria's research state: research runs with persistent goals, project claims and artifacts, and their commands (/run, /runs, /claim, /claims, /artifacts, /next-steps)",
+  "description": "Theoria's research state: research runs with persistent goals, project claims and artifacts, and their commands (/attack, /runs, /claim, /claims, /artifacts, /next-steps)",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",

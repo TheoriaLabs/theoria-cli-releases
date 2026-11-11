@@ -47,7 +47,7 @@ export const helpSections: HelpSection[] = [
           '`--n` sets how many ideas (default 5–8); `--focus` biases them toward theory, numerics or Lean formalization, weighing recent momentum in that kind of work.',
           'The agent reads the sources, then answers in the conversation; nothing is recorded unless you ask.',
           'Edit the prompt by copying `packages/theoria-research/prompts/next-steps.md` to `.theoria/commands/next-steps.md`.'] },
-      { command: 'run', summary: 'Research runs: a bounded effort with a persistent goal.',
+      { command: 'attack', summary: 'Attack a research objective with a persistent goal.',
         forms: ['status', 'new <objective>', 'fork [objective]', 'resume [run-id]', 'pause', 'complete', 'update focus <text> | note <text> | ready [summary]'] },
       { command: 'runs', summary: "The project's research runs, with their forks.", forms: [''] },
       { command: 'plan', summary: 'The proof or research plan of this run (or project).', forms: ['[show]', 'check'],
@@ -69,9 +69,11 @@ export const helpSections: HelpSection[] = [
     title: 'Benchmarks',
     entries: [
       { command: 'benchmark', summary: 'Install benchmark suites, run trials judged by Comparator, compare runs.',
-        forms: ['list', 'install <id>', 'run <id> [train|val|test] [N | task,task] [cost=<USD>] [repeat=<k>] [concurrency=<c>] [timeout=<min>]',
-          'run <id> mode=compress [corpus=<manifest>] [skill=<path>|none] [rounds=<n>]', 'status [run]', 'compare <run> <run>', 'resume [run]', 'cancel [run]'],
-        notes: ['A run costs money and asks first; the test split asks again.'] },
+        forms: ['list', 'install <id>', 'run <id> [train|val|test] [N | task,task] [model=<provider>/<id>] [cost=<USD>] [repeat=<k>] [concurrency=<c>] [timeout=<min>]',
+          'run <id> mode=compress [corpus=<manifest>] [skill=<path>|none] [rounds=<n>] [model=<provider>/<id>]', 'status [run]', 'compare <run> <run>', 'resume [run]', 'cancel [run]'],
+        notes: ['A run costs money and asks first; the test split asks again.',
+          'model=<provider>/<id> selects a registered model for this run. Omission uses the current session model; the choice is saved for retries and resumes.',
+          'The agent can submit one benchmark-run call per model with an explicit model= argument, without switching the session model.'] },
     ],
   },
   {

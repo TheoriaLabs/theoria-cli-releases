@@ -24,7 +24,7 @@ export { money, tokens, duration, trialUsage, usageLines } from './status-format
  * runner stopped (the terminal closed, the bot restarted) is resumed with `resume`.
  */
 
-export const benchmarkUsage = '/benchmark list · install <id> · run <id> [train|val|test] [N | task,task] [harness=<profile>] [thinking=<level>] [repeat=k] [cost=$] [concurrency=c] [timeout=min] [context-dir=<directory>] [prompt-append="additional instructions"] [mode=compress corpus=<manifest> [skill=<file>|none] rounds=2 skip-verification=true] · status [run] · compare <run> <run> · resume [run] · cancel [run] · corpus import <id> <source> <manifest>';
+export const benchmarkUsage = '/benchmark list · install <id> · run <id> [train|val|test] [N | task,task] [model=<provider>/<id>] [harness=<profile>] [thinking=<level>] [repeat=k] [cost=$] [concurrency=c] [timeout=min] [context-dir=<directory>] [prompt-append="additional instructions"] [mode=compress corpus=<manifest> [skill=<file>|none] rounds=2 skip-verification=true] · status [run] · compare <run> <run> · resume [run] · cancel [run] · corpus import <id> <source> <manifest>';
 
 const active = new Map<string, BenchmarkRunner>();
 export const activeRunners = () => [...active.keys()];
@@ -60,15 +60,23 @@ export async function install(id: string, onLine?: (line: string) => void): Prom
 }
 
 /** `run <id> [split] [N|tasks] [key=value…]` into plan options. */
-export function parseRunArgs(args: string, model: string, startedFrom: BenchmarkRun['startedFrom'], cwd = process.cwd()): PlanOptions {
+export function parseRunArgs(args: string, model: string | undefined, startedFrom: BenchmarkRun['startedFrom'], cwd = process.cwd()): PlanOptions {
   const { args: words, skill } = compressionSkillArgs(splitArgs(args));
   const [benchmarkId = '', ...rest] = words;
   const overrides: Partial<BenchmarkRunConfig> = {};
   let split: string | undefined;
   let tasks: string | undefined;
+  let modelOverride: string | undefined;
   const compression: Record<string, string> = skill === undefined ? {} : { skill };
   const splitNames = [...new Set(['train', 'val', 'test', ...config().benchmarks.splits.shares.map(entry => entry.split)])];
   for (const word of rest) {
+    if (word.startsWith('model=')) {
+      if (modelOverride !== undefined) throw new Error('Specify model only once.');
+      const value = word.slice('model='.length);
+      if (!/^[^/\s]+\/\S+$/.test(value)) throw new Error('model must be a full provider/model-id, such as amazon-bedrock/us.openai.gpt-6.1-sol-ultrafast.');
+      modelOverride = value;
+      continue;
+    }
     if (word.startsWith('skip-verification=')) {
       if (overrides.skipVerification !== undefined) throw new Error('Specify skip-verification only once.');
       const value = word.slice('skip-verification='.length);
@@ -113,7 +121,9 @@ export function parseRunArgs(args: string, model: string, startedFrom: Benchmark
   if (overrides.skipVerification && compression.mode !== 'compress') throw new Error('skip-verification requires mode=compress.');
   const rounds = compression.rounds === undefined ? config().benchmarks.compression.rounds : Number(compression.rounds);
   if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('rounds must be a positive integer.');
-  return { benchmarkId, ...(split ? { split } : {}), ...(tasks ? { tasks } : {}), model, overrides, startedFrom, cwd,
+  const selectedModel = modelOverride ?? model;
+  if (!selectedModel) throw new Error('Choose a model with /model or specify model=<provider>/<id> for this run.');
+  return { benchmarkId, ...(split ? { split } : {}), ...(tasks ? { tasks } : {}), model: selectedModel, overrides, startedFrom, cwd,
     ...(compression.mode === 'compress' ? { compression: { corpus: compression.corpus!, ...(skill !== undefined ? { skill } : {}), rounds } } : {}) };
 }
 

@@ -76,7 +76,7 @@ export default function actions(pi: ExtensionAPI) {
     recent.push(key);
     if (recent.length > settings.repeatLimit) recent.shift();
     if (spec.execution === 'inline') {
-      try { return await spec.run(args, { cwd: ctx.cwd, invokedBy: 'model', hasUI: ctx.hasUI, ui: ctx.ui, signal }); } catch (error) {
+      try { return await spec.run(args, { cwd: ctx.cwd, invokedBy: 'model', hasUI: ctx.hasUI, ui: ctx.ui, model: ctx.model, modelRegistry: ctx.modelRegistry, signal }); } catch (error) {
         return { ok: false, text: `${spec.name} failed: ${error instanceof Error ? error.message : String(error)}` };
       }
     }
@@ -108,7 +108,7 @@ export default function actions(pi: ExtensionAPI) {
       running = next;
       let result: ActionResult;
       try {
-        result = await next.spec.run(next.args, { cwd: ctx.cwd, invokedBy: 'model', hasUI: ctx.hasUI, ui: ctx.ui, command: ctx as ExtensionCommandContext });
+        result = await next.spec.run(next.args, { cwd: ctx.cwd, invokedBy: 'model', hasUI: ctx.hasUI, ui: ctx.ui, model: ctx.model, modelRegistry: ctx.modelRegistry, command: ctx as ExtensionCommandContext });
       } catch (error) {
         result = { ok: false, resumeAgent: false, text: `${next.spec.name} failed: ${error instanceof Error ? error.message : String(error)}` };
       } finally {

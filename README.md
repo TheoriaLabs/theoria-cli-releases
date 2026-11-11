@@ -262,16 +262,16 @@ Goal queries use 1-indexed positions and the current saved file. Finish edits be
 results. A locally complete goal does not establish that the whole file verifies or that compression
 improved: `lean_check`, preservation checks, measurements, and Comparator remain authoritative.
 
-## Research runs, claims and artifacts: `/run`, `/claim`, `/artifact`
+## Research runs, claims and artifacts: `/attack`, `/claim`, `/artifact`
 
 A **research run** is one bounded research effort in a project, with a persistent goal (objective, success
-criteria, current focus, notes) kept in `.theoria/runs/<run>/run.json`, not in a conversation. `/run new <objective>`
-starts one in a new conversation; `/run fork [objective]` branches a new run from the current one (the project's
-claims and artifacts carry over, the conversation does not); `/run resume`, `/run pause`, `/run complete`,
-`/run status`, `/runs` (with forks). While a conversation belongs to a run, its goal and the most relevant claims,
+criteria, current focus, notes) kept in `.theoria/runs/<run>/run.json`, not in a conversation. `/attack new <objective>`
+starts one in a new conversation; `/attack fork [objective]` branches a new run from the current one (the project's
+claims and artifacts carry over, the conversation does not); `/attack resume`, `/attack pause`, `/attack complete`,
+`/attack status`, `/runs` (with forks). While a conversation belongs to a run, its goal and the most relevant claims,
 artifacts and events are added to the agent's instructions each turn. A run records the harness it ran with (model,
 Pi and Theoria versions, project type, packages, system prompt hash) and an append-only event log
-(`events.jsonl`: verdicts, claims, artifacts, goal changes). `/run new` can also start pi-goal-x on the goal; pi-goal-x
+(`events.jsonl`: verdicts, claims, artifacts, goal changes). `/attack new` can also start pi-goal-x on the goal; pi-goal-x
 marking it complete is recorded as the agent's and auditor's judgement, and only you complete a run.
 
 **Claims** (`/claim`, `/claims`) are project knowledge, every version kept in `.theoria/claims.jsonl`; **artifacts**
@@ -306,7 +306,7 @@ topic, its central recent papers) and 5–10 related or citing works, same autho
 where recent activity is growing, distills the contributions, methods and stated open questions, and proposes
 extensions. Each has a one-line idea, why it is new relative to the gathered works, a type, a concrete first step (a
 computation, experiment, lemma or Lean statement), difficulty and risk. It ranks them, recommends the top one or two,
-and offers `/claim new hypothesis`, `/formalize` or `/run new` for the ones you choose. It cites only sources it
+and offers `/claim new hypothesis`, `/formalize` or `/attack new` for the ones you choose. It cites only sources it
 fetched and records nothing on its own.
 
 - `--n <k>` asks for exactly *k* ideas (1–10; default 5–8).
@@ -355,8 +355,8 @@ Commands that fit a research flow are also the agent's, through one tool, `theor
 command, with a structured result (a Lean verdict, a claim's state), never a summary to take on trust. `actions.model`
 in the configuration says per command and per surface (terminal, bot, benchmark trial) whether the agent may run it
 (`allow`), must ask you (`ask`; refused where no one can answer) or may not (`deny`); a command not listed is denied.
-Listed now: `/formalize`, `/prove`, `/compress`, `/claim(s)`, `/artifact(s)`, `/run status`, `/run update`
-(focus, notes, ready for review), `/run fork` (asks), `/project status`, `/lean status`, `/benchmark list|status`,
+Listed now: `/formalize`, `/prove`, `/compress`, `/claim(s)`, `/artifact(s)`, `/attack status`, `/attack update`
+(focus, notes, ready for review), `/attack fork` (asks), `/project status`, `/lean status`, `/benchmark list|status`,
 `/benchmark run` (asks: it costs money). Installing, switching project or type, MCP and the Telegram connection are
 never the agent's.
 
@@ -420,8 +420,29 @@ are not copied into task records or the child's empty Pi auth file.
 
 `/benchmark install <id>` fetches the pinned source, freezes its splits, prepares the Lean environment and builds the
 judge; `/benchmark list` shows each with its splits and compatibility. `/benchmark run <id> [train|val|test] [N or
-task,task] [harness=<profile>] [thinking=<level>] [repeat=k] [cost=$] [concurrency=c] [timeout=min]` shows what will run and at most what it costs, and
+task,task] [model=<provider>/<id>] [harness=<profile>] [thinking=<level>] [repeat=k] [cost=$] [concurrency=c] [timeout=min]` shows what will run and at most what it costs, and
 starts after you confirm. `/benchmark status [run]`, `compare <run> <run>`, `resume`, `cancel`.
+
+Select a model for an individual proving or compression run with `model=<provider>/<id>`:
+
+```text
+/benchmark run smoke train 2 model=amazon-bedrock/us.openai.gpt-6-astra-ultrafast
+/benchmark run smoke train 2 model=amazon-bedrock/us.openai.gpt-6.1-sol-ultrafast
+```
+
+Use the full provider/model ID from `/model`, including any slashes inside the model ID. Terminal and agent
+launches check it against the session's registry, including custom models and aliases. Omit `model` to use the
+current session model. The selected model appears in the confirmation and run records, and is reused for all
+trials, retries and resumes. Each override applies only to that run; it does not switch the session model.
+
+The agent's `theoria` tool accepts the same option in a `benchmark-run` action:
+
+```json
+{"action":"benchmark-run","args":"smoke train 2 model=amazon-bedrock/us.openai.gpt-6.1-sol-ultrafast cost=1"}
+```
+
+To evaluate several models, ask the agent to submit one launch per model with explicit IDs. Each run has its own
+confirmation and budget. Telegram's `/benchmark_run` accepts the same `model=` option.
 
 Append extra literal instructions with `prompt-append="..."`, in proving or compression mode:
 
@@ -521,8 +542,8 @@ the regular `theoria` profile; the currently installed Hammer add-on supports Ma
 
 From Telegram: `/benchmark_list`, `/benchmark_run`, `/benchmark_status`, `/benchmark_compare`, `/benchmark_cancel`, with a confirmation
 button and at most `connectors.telegram.maxBenchmarkCostUsd` ($25) per run; one at a time; each trial and the result
-arrive as messages; a run the bot left when it stopped is offered to resume. `/runs`, `/run_new <objective>`,
-`/run_fork`, `/run_resume`, `/run_pause`, `/run_complete` work on the selected project.
+arrive as messages; a run the bot left when it stopped is offered to resume. `/runs`, `/attack_new <objective>`,
+`/attack_fork`, `/attack_resume`, `/attack_pause`, `/attack_complete` work on the selected project.
 
 ### Compression benchmarks and skill autoresearch
 
@@ -1081,7 +1102,7 @@ use the selected project; dependency installation is done in a terminal.
 | `theoria-lean` | `/lean`, `lean_check`, for types with `lean`; its API for other packages is `@theoria/pi-lean/api` |
 | `theoria-workflows` | `/formalize`, `/prove`, `/compress`, as the project's type enables them |
 | `theoria-latex` | `/latex`: one project paper, TeX dependency setup, PDF compilation, evidence-based creation and updates |
-| `theoria-research` | research runs, claims (formal and statistical verification), artifacts, plans: `/run`, `/runs`, `/claim(s)`, `/artifact(s)`, `/plan` |
+| `theoria-research` | research runs, claims (formal and statistical verification), artifacts, plans: `/attack`, `/runs`, `/claim(s)`, `/artifact(s)`, `/plan` |
 | `theoria-bench` | benchmarks: splits, exact Lean environments, sandboxed trials, Comparator, `/benchmark` |
 | `theoria-autoresearch` | `/autoresearch` supervisor: campaign scheduling, journals, evidence, literature and methodology |
 | `theoria-telegram` | `/connect-bot`, `theoria bot`, notifications, the sandbox and credential broker for bot sessions |
